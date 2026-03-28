@@ -1,0 +1,172 @@
+import React from 'react';
+import { ShaderConfig } from '../types';
+import { Settings2, Play, Pause, RotateCcw, Code, Check } from 'lucide-react';
+
+interface ControlsProps {
+  configs: ShaderConfig[];
+  onUpdate: (id: string, updates: Partial<ShaderConfig>) => void;
+}
+
+export default function Controls({ configs, onUpdate }: ControlsProps) {
+  const [copied, setCopied] = React.useState(false);
+
+  const copyEmbedCode = () => {
+    const embedUrl = `${window.location.origin}${window.location.pathname}?hideUI=true`;
+    const embedCode = `<iframe src="${embedUrl}" width="100%" height="600px" frameborder="0" allowfullscreen></iframe>`;
+    
+    const onSuccess = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    // Try modern Clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(embedCode)
+        .then(onSuccess)
+        .catch(() => fallbackCopy(embedCode, onSuccess));
+    } else {
+      fallbackCopy(embedCode, onSuccess);
+    }
+  };
+
+  const fallbackCopy = (text: string, cb: () => void) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    // Ensure it's not visible but part of the DOM
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) cb();
+    } catch (err) {
+      console.error('Fallback copy failed', err);
+    }
+    document.body.removeChild(textArea);
+  };
+
+  return (
+    <div className="fixed left-4 top-4 z-50 w-72 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl p-4 text-white font-mono shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-2">
+        <div className="flex items-center gap-2">
+          <Settings2 size={20} className="text-blue-400" />
+          <h2 className="text-lg font-bold tracking-tight">SHADER CONTROLS</h2>
+        </div>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={copyEmbedCode}
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
+            title="Copy Embed Code"
+          >
+            {copied ? <Check size={16} className="text-green-400" /> : <Code size={16} />}
+          </button>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
+            title="Reset All"
+          >
+            <RotateCcw size={16} />
+          </button>
+        </div>
+      </div>
+
+      {configs.map((config, index) => (
+        <div key={config.id} className="mb-8 last:mb-0">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-white/40">0{index + 1}.</span>
+            <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">{config.name}</h3>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>START OFFSET (SCROLL %)</label>
+                <span>{(config.startOffset * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="0.9"
+                step="0.01"
+                value={config.startOffset}
+                onChange={(e) => onUpdate(config.id, { startOffset: parseFloat(e.target.value) })}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>ANIMATION DURATION</label>
+                <span>{config.duration.toFixed(0)}s</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="1000"
+                step="10"
+                value={config.duration}
+                onChange={(e) => onUpdate(config.id, { duration: parseFloat(e.target.value) })}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>SPEED MULTIPLIER</label>
+                <span>{config.speed.toFixed(1)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="20"
+                step="0.1"
+                value={config.speed}
+                onChange={(e) => onUpdate(config.id, { speed: parseFloat(e.target.value) })}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>STICKY RANGE (SCROLL %)</label>
+                <span>{(config.stickyRange * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.05"
+                max="0.5"
+                step="0.01"
+                value={config.stickyRange}
+                onChange={(e) => onUpdate(config.id, { stickyRange: parseFloat(e.target.value) })}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>SCROLL OUT RANGE (SCROLL %)</label>
+                <span>{(config.scrollRange * 100).toFixed(0)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.01"
+                max="0.2"
+                step="0.01"
+                value={config.scrollRange}
+                onChange={(e) => onUpdate(config.id, { scrollRange: parseFloat(e.target.value) })}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="mt-6 pt-4 border-t border-white/10 text-[9px] text-white/30 text-center uppercase tracking-widest">
+        Scroll to animate • Drag sliders to adjust
+      </div>
+    </div>
+  );
+}

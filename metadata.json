@@ -1,0 +1,5 @@
+{
+  "name": "Scroll-Driven Seascape Shader",
+  "description": "A landing page with a Seascape GLSL shader animation driven by mouse scroll.",
+  "requestFramePermissions": []
+}
