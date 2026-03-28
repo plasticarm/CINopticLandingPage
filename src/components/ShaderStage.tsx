@@ -31,7 +31,7 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
     if (!scroll || !mesh.current) return;
     
     // Safely get config values with defaults
-    const s = typeof config.speed === 'number' ? config.speed : 5;
+    const s = typeof config.speed === 'number' ? config.speed : 0.1;
     const d = typeof config.duration === 'number' ? config.duration : 200;
     const startOffset = config.startOffset ?? 0;
     const stickyRange = config.stickyRange ?? 0.25;

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ShaderConfig } from '../types';
-import { Settings2, Play, Pause, RotateCcw, Code, Check } from 'lucide-react';
+import { Settings2, Play, Pause, RotateCcw, Code, Check, Info, ExternalLink } from 'lucide-react';
 
 interface ControlsProps {
   configs: ShaderConfig[];
@@ -9,9 +9,18 @@ interface ControlsProps {
 
 export default function Controls({ configs, onUpdate }: ControlsProps) {
   const [copied, setCopied] = React.useState(false);
+  const [showEmbedInfo, setShowEmbedInfo] = React.useState(false);
+  const [customEmbedUrl, setCustomEmbedUrl] = React.useState('');
+
+  const getEmbedUrl = () => {
+    const baseUrl = customEmbedUrl || `${window.location.origin}${window.location.pathname}`;
+    const url = new URL(baseUrl);
+    url.searchParams.set('hideUI', 'true');
+    return url.toString();
+  };
 
   const copyEmbedCode = () => {
-    const embedUrl = `${window.location.origin}${window.location.pathname}?hideUI=true`;
+    const embedUrl = getEmbedUrl();
     const embedCode = `<iframe src="${embedUrl}" width="100%" height="600px" frameborder="0" allowfullscreen></iframe>`;
     
     const onSuccess = () => {
@@ -57,11 +66,11 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
         </div>
         <div className="flex items-center gap-1">
           <button 
-            onClick={copyEmbedCode}
-            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-            title="Copy Embed Code"
+            onClick={() => setShowEmbedInfo(!showEmbedInfo)}
+            className={`p-1.5 rounded-lg transition-colors ${showEmbedInfo ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
+            title="Embed Settings"
           >
-            {copied ? <Check size={16} className="text-green-400" /> : <Code size={16} />}
+            <Code size={16} />
           </button>
           <button 
             onClick={() => window.location.reload()} 
@@ -72,6 +81,43 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
           </button>
         </div>
       </div>
+
+      {showEmbedInfo && (
+        <div className="mb-6 p-3 bg-white/5 rounded-lg border border-white/10 text-[10px] space-y-3">
+          <div className="flex items-start gap-2 text-blue-300">
+            <Info size={14} className="shrink-0 mt-0.5" />
+            <p>For Google Sites, use the <span className="text-white font-bold">Shared App URL</span> to avoid policy blocks.</p>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-white/40 uppercase tracking-widest">Custom Embed URL (Optional)</label>
+            <input 
+              type="text"
+              placeholder="Paste Shared URL here..."
+              value={customEmbedUrl}
+              onChange={(e) => setCustomEmbedUrl(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-blue-500/50"
+            />
+          </div>
+
+          <button 
+            onClick={copyEmbedCode}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-colors flex items-center justify-center gap-2"
+          >
+            {copied ? (
+              <>
+                <Check size={14} />
+                COPIED!
+              </>
+            ) : (
+              <>
+                <Code size={14} />
+                COPY IFRAME CODE
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {configs.map((config, index) => (
         <div key={config.id} className="mb-8 last:mb-0">
