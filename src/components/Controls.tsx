@@ -122,7 +122,7 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
                 type="range"
                 min="0.1"
                 max="20"
-                step="0.1"
+                step="0.01"
                 value={config.speed}
                 onChange={(e) => onUpdate(config.id, { speed: parseFloat(e.target.value) })}
                 className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
