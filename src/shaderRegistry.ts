@@ -5,6 +5,8 @@ import { fragmentShader as planetCode } from './components/PlanetShaderCode';
 import { fragmentShader as seascapeCode } from './components/SeascapeShaderCode';
 import { fragmentShader as luminescenceCode } from './components/LuminescenceShaderCode';
 import { fragmentShader as fractalCode } from './components/FractalShaderCode';
+import { crossingStormsCode } from './components/CrossingStormsShaderCode';
+import { coldStrandsCode } from './components/ColdStrandsShaderCode';
 
 export const blackShader = `
 void main() {
@@ -26,11 +28,21 @@ export const shaderRegistry: Record<string, { name: string; code: string }[]> = 
   ],
   luminescence: [
     { name: 'Luminescence 1', code: luminescenceCode },
+    { name: 'Cold Strands', code: coldStrandsCode },
   ],
   microscopic: [
     { name: 'Microscopic 1', code: fractalCode },
   ],
   final: [
+    { name: 'Crossing Storms', code: crossingStormsCode },
     { name: 'Black', code: blackShader },
   ]
 };
+
+export const allShaders = Object.entries(shaderRegistry).flatMap(([category, shaders]) => 
+  shaders.map((shader, index) => ({
+    id: `${category}-${index}`,
+    name: shader.name,
+    code: shader.code
+  }))
+);

@@ -9,29 +9,29 @@ import { ScrollControls, Scroll } from '@react-three/drei';
 import ShaderStage from './components/ShaderStage';
 import Controls from './components/Controls';
 import { ShaderConfig } from './types';
-import { shaderRegistry } from './shaderRegistry';
+import { shaderRegistry, allShaders } from './shaderRegistry';
 
 const INITIAL_CONFIGS: ShaderConfig[] = [
   {
     id: 'cosmos',
     name: 'Cosmos',
-    duration: 500,
+    duration: 200,
     speed: 0.1,
     startOffset: 0,
     stickyRange: 0.14,
-    scrollRange: 0.025,
-    shaderId: '0',
+    scrollRange: 0.046,
+    shaderId: 'cosmos-0',
     text: 'From the vastness of the cosmos...',
   },
   {
     id: 'planet',
     name: 'Planet',
-    duration: 370,
+    duration: 200,
     speed: 0.1,
-    startOffset: 0.165,
+    startOffset: 0.186,
     stickyRange: 0.14,
-    scrollRange: 0.025,
-    shaderId: '0',
+    scrollRange: 0.046,
+    shaderId: 'planet-0',
     text: '...to the worlds we build and explore...',
   },
   {
@@ -39,21 +39,21 @@ const INITIAL_CONFIGS: ShaderConfig[] = [
     name: 'Ocean',
     duration: 200,
     speed: 0.1,
-    startOffset: 0.33,
+    startOffset: 0.372,
     stickyRange: 0.14,
-    scrollRange: 0.025,
-    shaderId: '0',
+    scrollRange: 0.046,
+    shaderId: 'ocean-0',
     text: '...diving into the uncharted depths of imagination...',
   },
   {
     id: 'luminescence',
     name: 'Luminescence',
-    duration: 250,
+    duration: 200,
     speed: 0.1,
-    startOffset: 0.495,
+    startOffset: 0.558,
     stickyRange: 0.14,
-    scrollRange: 0.025,
-    shaderId: '0',
+    scrollRange: 0.046,
+    shaderId: 'luminescence-0',
     text: '...depths that demand to be experienced...',
   },
   {
@@ -61,21 +61,21 @@ const INITIAL_CONFIGS: ShaderConfig[] = [
     name: 'Microscopic',
     duration: 200,
     speed: 0.1,
-    startOffset: 0.66,
+    startOffset: 0.744,
     stickyRange: 0.14,
-    scrollRange: 0.025,
-    shaderId: '0',
+    scrollRange: 0.046,
+    shaderId: 'microscopic-0',
     text: '...down to the hidden architecture of reality itself.',
   },
   {
     id: 'final',
     name: 'Final Resolve',
-    duration: 100,
+    duration: 200,
     speed: 0.1,
-    startOffset: 0.825,
+    startOffset: 0.93,
     stickyRange: 0.14,
-    scrollRange: 0.025,
-    shaderId: '0',
+    scrollRange: 0.046,
+    shaderId: 'final-0',
     text: 'We make the invisible, immersive. Welcome to CINoptic.',
   },
 ];
@@ -100,6 +100,11 @@ export default function App() {
     }
     return INITIAL_CONFIGS;
   });
+
+  const [introText, setIntroText] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('introText') || "Welcome to CINoptic";
+  });
   
   // Check for hideUI parameter
   const hideUI = new URLSearchParams(window.location.search).has('hideUI');
@@ -108,15 +113,15 @@ export default function App() {
     setConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
   };
 
+  const pages = 10;
+
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
-      {!hideUI && <Controls configs={configs} onUpdate={handleUpdate} />}
+      {!hideUI && <Controls configs={configs} onUpdate={handleUpdate} introText={introText} onUpdateIntroText={setIntroText} />}
       <Canvas camera={{ position: [0, 0, 5] }}>
-        <ScrollControls pages={12} damping={0.2}>
+        <ScrollControls pages={pages} damping={0.2}>
           {configs.map((config, index) => {
-            const shaderList = shaderRegistry[config.id] || shaderRegistry.final;
-            const shaderIndex = parseInt(config.shaderId || '0', 10);
-            const selectedShader = shaderList[shaderIndex] || shaderList[0];
+            const selectedShader = allShaders.find(s => s.id === config.shaderId) || allShaders[0];
             
             return (
               <ShaderStage 
@@ -128,12 +133,32 @@ export default function App() {
           })}
           
           <Scroll html>
+            <div 
+              style={{ 
+                position: 'absolute', 
+                top: '50vh', 
+                left: '0', 
+                width: '100vw', 
+                textAlign: 'center', 
+                color: 'white', 
+                fontSize: '2rem', 
+                fontFamily: 'var(--font-julius)', 
+                pointerEvents: 'none', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.2em', 
+                textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                whiteSpace: 'pre-wrap',
+                transform: 'translateY(-50%)'
+              }}
+            >
+              {introText}
+            </div>
             {configs.map((config, index) => (
               <div 
                 key={`text-${config.id}`}
                 style={{ 
                   position: 'absolute', 
-                  top: `${134 + index * 198}vh`, 
+                  top: `${(config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100 + 50}vh`, 
                   left: '0', 
                   width: '100vw', 
                   textAlign: 'center', 
@@ -144,7 +169,8 @@ export default function App() {
                   textTransform: 'uppercase', 
                   letterSpacing: '0.2em', 
                   textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-                  whiteSpace: 'pre-wrap'
+                  whiteSpace: 'pre-wrap',
+                  transform: 'translateY(-50%)'
                 }}
               >
                 {config.text}

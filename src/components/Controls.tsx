@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { ShaderConfig } from '../types';
 import { Settings2, Play, Pause, RotateCcw, Code, Check, Info, ExternalLink } from 'lucide-react';
-import { shaderRegistry } from '../shaderRegistry';
+import { shaderRegistry, allShaders } from '../shaderRegistry';
 
 interface ControlsProps {
   configs: ShaderConfig[];
   onUpdate: (id: string, updates: Partial<ShaderConfig>) => void;
+  introText: string;
+  onUpdateIntroText: (text: string) => void;
 }
 
-export default function Controls({ configs, onUpdate }: ControlsProps) {
+export default function Controls({ configs, onUpdate, introText, onUpdateIntroText }: ControlsProps) {
   const [copied, setCopied] = React.useState(false);
   const [showEmbedInfo, setShowEmbedInfo] = React.useState(false);
   const [customEmbedUrl, setCustomEmbedUrl] = React.useState('');
@@ -17,6 +19,7 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
     const baseUrl = customEmbedUrl || `${window.location.origin}${window.location.pathname}`;
     const url = new URL(baseUrl);
     url.searchParams.set('hideUI', 'true');
+    url.searchParams.set('introText', introText);
     
     // Serialize configs to URL parameter
     try {
@@ -29,7 +32,8 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
         startOffset: c.startOffset,
         stickyRange: c.stickyRange,
         scrollRange: c.scrollRange,
-        text: c.text
+        text: c.text,
+        animationMode: c.animationMode
       }));
       url.searchParams.set('config', JSON.stringify(serializedConfigs));
     } catch (e) {
@@ -139,8 +143,27 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
         </div>
       )}
 
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs text-white/40">00.</span>
+          <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">Intro</h3>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between text-[10px] mb-1 text-white/60">
+              <label>INTRO TEXT</label>
+            </div>
+            <textarea
+              value={introText}
+              onChange={(e) => onUpdateIntroText(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white/80 text-xs focus:outline-none focus:border-blue-500/50 resize-y min-h-[60px]"
+              placeholder="Enter intro text..."
+            />
+          </div>
+        </div>
+      </div>
+
       {configs.map((config, index) => {
-        const availableShaders = shaderRegistry[config.id] || shaderRegistry.final;
         return (
         <div key={config.id} className="mb-8 last:mb-0">
           <div className="flex items-center gap-2 mb-3">
@@ -149,22 +172,34 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
           </div>
 
           <div className="space-y-4">
-            {availableShaders.length > 1 && (
-              <div>
-                <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                  <label>SHADER VARIANT</label>
-                </div>
-                <select
-                  value={config.shaderId || '0'}
-                  onChange={(e) => onUpdate(config.id, { shaderId: e.target.value })}
-                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
-                >
-                  {availableShaders.map((shader, i) => (
-                    <option key={i} value={i.toString()}>{shader.name}</option>
-                  ))}
-                </select>
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>ANIMATION MODE</label>
               </div>
-            )}
+              <select
+                value={config.animationMode || 'scroll'}
+                onChange={(e) => onUpdate(config.id, { animationMode: e.target.value as 'always' | 'scroll' })}
+                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="scroll">Scroll To Animate</option>
+                <option value="always">Always Animate</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>SHADER VARIANT</label>
+              </div>
+              <select
+                value={config.shaderId || allShaders[0].id}
+                onChange={(e) => onUpdate(config.id, { shaderId: e.target.value })}
+                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+              >
+                {allShaders.map((shader) => (
+                  <option key={shader.id} value={shader.id}>{shader.name}</option>
+                ))}
+              </select>
+            </div>
 
             <div>
               <div className="flex justify-between text-[10px] mb-1 text-white/60">

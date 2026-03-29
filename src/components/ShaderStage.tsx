@@ -8,9 +8,10 @@ interface ShaderStageProps {
   config: ShaderConfig;
   fragmentShader: string;
   position?: [number, number, number];
+  isLast?: boolean;
 }
 
-export default function ShaderStage({ config, fragmentShader, position = [0, 0, 0] }: ShaderStageProps) {
+export default function ShaderStage({ config, fragmentShader, position = [0, 0, 0], isLast = false }: ShaderStageProps) {
   const mesh = useRef<THREE.Mesh>(null);
   const scroll = useScroll();
   const { size, viewport } = useThree();
@@ -37,6 +38,8 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
     const stickyRange = config.stickyRange ?? 0.25;
     const scrollRange = config.scrollRange ?? 0.1;
 
+    const animationMode = config.animationMode || 'scroll';
+
     const scrollProgress = scroll.offset;
     const startScrollIn = startOffset - scrollRange;
     const endSticky = startOffset + stickyRange;
@@ -52,12 +55,22 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
       ? Math.max(0, Math.min(1, (scrollProgress - animationStart) / totalVisibilityRange))
       : 0;
 
-    // iTime is now purely driven by scroll progress (scrubbing)
-    // It starts at 0 and ends at (duration * speed)
-    const scrollTime = localProgress * d * s;
+    let currentTime = 0;
+    if (isLast) {
+      // Indefinite animation driven by scroll
+      // We use the absolute scroll progress to keep it moving
+      currentTime = scrollProgress * 100.0 * s; 
+    } else if (animationMode === 'always') {
+      timeRef.current += delta * s * 10.0;
+      currentTime = timeRef.current;
+    } else {
+      // iTime is now purely driven by scroll progress (scrubbing)
+      // It starts at 0 and ends at (duration * speed)
+      currentTime = localProgress * d * s;
+    }
     
-    uniforms.iTime.value = scrollTime;
-    uniforms.uTime.value = scrollTime;
+    uniforms.iTime.value = currentTime;
+    uniforms.uTime.value = currentTime;
     
     uniforms.iResolution.value.set(size.width, size.height);
     uniforms.uResolution.value.set(size.width, size.height);

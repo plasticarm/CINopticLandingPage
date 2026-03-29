@@ -8,6 +8,7 @@ export interface ShaderConfig {
   scrollRange: number;
   shaderId?: string;
   text?: string;
+  animationMode?: 'always' | 'scroll';
 }
 
 export interface AppConfig {
