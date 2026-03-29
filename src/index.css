@@ -1,1 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Julius+Sans+One&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-julius: "Julius Sans One", sans-serif;
+}

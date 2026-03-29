@@ -18,7 +18,7 @@ export default function PlanetShader({ position = [0, 0, 0] }: { position?: [num
   useFrame((state) => {
     if (!scroll || !mesh.current) return;
     const scrollProgress = scroll.offset;
-    const animationDuration = 370.0; 
+    const animationDuration = 50.0; 
     
     // 0.0 to 0.25: Animation plays while fixed at y=0
     // 0.25 to 0.33: Animation finishes while scrolling up

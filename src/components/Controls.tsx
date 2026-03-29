@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShaderConfig } from '../types';
 import { Settings2, Play, Pause, RotateCcw, Code, Check, Info, ExternalLink } from 'lucide-react';
+import { shaderRegistry } from '../shaderRegistry';
 
 interface ControlsProps {
   configs: ShaderConfig[];
@@ -16,6 +17,25 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
     const baseUrl = customEmbedUrl || `${window.location.origin}${window.location.pathname}`;
     const url = new URL(baseUrl);
     url.searchParams.set('hideUI', 'true');
+    
+    // Serialize configs to URL parameter
+    try {
+      // Include all properties to ensure exact match
+      const serializedConfigs = configs.map(c => ({
+        id: c.id,
+        shaderId: c.shaderId,
+        duration: c.duration,
+        speed: c.speed,
+        startOffset: c.startOffset,
+        stickyRange: c.stickyRange,
+        scrollRange: c.scrollRange,
+        text: c.text
+      }));
+      url.searchParams.set('config', JSON.stringify(serializedConfigs));
+    } catch (e) {
+      console.error('Failed to serialize configs', e);
+    }
+    
     return url.toString();
   };
 
@@ -119,7 +139,9 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
         </div>
       )}
 
-      {configs.map((config, index) => (
+      {configs.map((config, index) => {
+        const availableShaders = shaderRegistry[config.id] || shaderRegistry.final;
+        return (
         <div key={config.id} className="mb-8 last:mb-0">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xs text-white/40">0{index + 1}.</span>
@@ -127,6 +149,23 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
           </div>
 
           <div className="space-y-4">
+            {availableShaders.length > 1 && (
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>SHADER VARIANT</label>
+                </div>
+                <select
+                  value={config.shaderId || '0'}
+                  onChange={(e) => onUpdate(config.id, { shaderId: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                >
+                  {availableShaders.map((shader, i) => (
+                    <option key={i} value={i.toString()}>{shader.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <div className="flex justify-between text-[10px] mb-1 text-white/60">
                 <label>START OFFSET (SCROLL %)</label>
@@ -144,14 +183,21 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
             </div>
 
             <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>ANIMATION DURATION</label>
-                <span>{config.duration.toFixed(0)}s</span>
+              <div className="flex justify-between items-center text-[10px] mb-1 text-white/60">
+                <label>ANIMATION DURATION (s)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100000"
+                  value={config.duration}
+                  onChange={(e) => onUpdate(config.id, { duration: parseFloat(e.target.value) || 0 })}
+                  className="w-20 bg-white/10 text-white text-right px-1 rounded border border-white/20 focus:outline-none focus:border-blue-500"
+                />
               </div>
               <input
                 type="range"
                 min="10"
-                max="1000"
+                max="100000"
                 step="10"
                 value={config.duration}
                 onChange={(e) => onUpdate(config.id, { duration: parseFloat(e.target.value) })}
@@ -162,13 +208,13 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
             <div>
               <div className="flex justify-between text-[10px] mb-1 text-white/60">
                 <label>SPEED MULTIPLIER</label>
-                <span>{config.speed.toFixed(1)}x</span>
+                <span>{config.speed.toFixed(3)}x</span>
               </div>
               <input
                 type="range"
-                min="0.1"
-                max="20"
-                step="0.01"
+                min="0.001"
+                max="1"
+                step="0.001"
                 value={config.speed}
                 onChange={(e) => onUpdate(config.id, { speed: parseFloat(e.target.value) })}
                 className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
@@ -206,9 +252,21 @@ export default function Controls({ configs, onUpdate }: ControlsProps) {
                 className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
               />
             </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>SECTION TEXT</label>
+              </div>
+              <textarea
+                value={config.text || ''}
+                onChange={(e) => onUpdate(config.id, { text: e.target.value })}
+                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white/80 text-xs focus:outline-none focus:border-blue-500/50 resize-y min-h-[60px]"
+                placeholder="Enter text for this section..."
+              />
+            </div>
           </div>
         </div>
-      ))}
+      )})}
 
       <div className="mt-6 pt-4 border-t border-white/10 text-[9px] text-white/30 text-center uppercase tracking-widest">
         Scroll to animate • Drag sliders to adjust

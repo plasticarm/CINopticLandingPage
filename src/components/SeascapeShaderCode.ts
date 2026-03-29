@@ -2,6 +2,7 @@ export const fragmentShader = `
 uniform float uTime;
 uniform vec2 uResolution;
 uniform vec2 uMouse;
+varying vec2 vUv;
 
 const int NUM_STEPS = 32;
 const float PI	 	= 3.141592;
@@ -173,7 +174,7 @@ vec3 getPixel(in vec2 coord, float time) {
 
 void main() {
     float time = uTime * 0.3 + uMouse.x*0.01;
-    vec3 color = getPixel(gl_FragCoord.xy, time);
+    vec3 color = getPixel(vUv * uResolution.xy, time);
     gl_FragColor = vec4(pow(color,vec3(0.65)), 1.0);
 }
 `;

@@ -6,6 +6,8 @@ export interface ShaderConfig {
   startOffset: number;
   stickyRange: number;
   scrollRange: number;
+  shaderId?: string;
+  text?: string;
 }
 
 export interface AppConfig {

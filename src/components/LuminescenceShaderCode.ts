@@ -2,6 +2,7 @@ export const fragmentShader = `
 uniform float iTime;
 uniform vec2 iResolution;
 uniform vec2 iMouse;
+varying vec2 vUv;
 
 // Luminescence by Martijn Steinrucken aka BigWings - 2017
 // Email:countfrolic@gmail.com Twitter:@The_ArtOfCode
@@ -545,6 +546,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 }
 
 void main() {
-    mainImage(gl_FragColor, gl_FragCoord.xy);
+    mainImage(gl_FragColor, vUv * iResolution.xy);
 }
 `;

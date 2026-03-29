@@ -2,1134 +2,499 @@ export const fragmentShader = `
 uniform float iTime;
 uniform vec2 iResolution;
 uniform vec2 iMouse;
+varying vec2 vUv;
 
-#define VERY_LOW_QUALITY
+//=======================================================================================//
+// Combined Shader: Procedural Blue Planet + Cinematic Camera Animation & Sun
+//=======================================================================================//
 
-// Planet Shadertoy. Created by Reinder Nijhoff 2015
-// Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
-// @reindernijhoff
-//
-// https://www.shadertoy.com/view/4tjGRh
-//
-// It uses code from the following shaders:
-//
-// Wet stone by TDM
-// Atmospheric Scattering by GLtracy
-// Seascape by TDM
-// Elevated and Terrain Tubes by IQ
-// LLamels by Eiffie
-// Lens flare by Musk
-// 
+// Planets geometry
+#define PLANET_POSITION vec3(0, 0, 0)
+#define PLANET_RADIUS 2.
+#define NOISE_STRENGTH .2
+#define ROTATION_SPEED -.1
+#define PLANET_ROTATION rotateY(iTime * ROTATION_SPEED)
 
-const float PI = 3.14159265359;
-const float DEG_TO_RAD = (PI / 180.0);
-const float MAX = 10000.0;
+#define MOON_RADIUS .08
+#define MOON_ROTATION_SPEED ROTATION_SPEED * 5.
+#define MOON_OFFSET vec3(PLANET_RADIUS * 1.2, PLANET_RADIUS / 4., 0.)
+#define MOON_ROTATION_AXIS (MOON_OFFSET - PLANET_POSITION) * rotateZ(PI/2.)
 
-const float EARTH_RADIUS = 1000.;
-const float EARTH_ATMOSPHERE = 5.;
-const float EARTH_CLOUDS = 1.;
+// Planet colors
+#define WATER_COLOR_DEEP vec3(0.01, 0.05, 0.15)
+#define WATER_COLOR_SURFACE vec3(0.02, 0.12, 0.27)
+#define SAND_COLOR vec3(1.0, 1.0, 0.85)
+#define TREE_COLOR vec3(.02, .1, .06)
+#define ROCK_COLOR vec3(0.15, 0.12, 0.12)
+#define ICE_COLOR  vec3(0.8, .9, .9)
+#define CLOUD_COLOR  vec3(1., 1., 1.)
+#define ATMOSPHERE_COLOR vec3(0.05, 0.3, 0.9)
 
-const float RING_INNER_RADIUS = 1500.;
-const float RING_OUTER_RADIUS = 2300.;
-const float RING_HEIGHT = 2.;
+#define WATER_SURFACE_LEVEL 0.0
+#define SAND_LEVEL .028
+#define TREE_LEVEL .03
+#define ROCK_LEVEL .1
+#define ICE_LEVEL .15
+#define TRANSITION .02
 
-const int   SEA_NUM_STEPS = 4;
-const int	TERRAIN_NUM_STEPS = 60;
-const int   ASTEROID_NUM_STEPS = 7;
-const int	ASTEROID_NUM_BOOL_SUB = 4;
-const int   RING_VOXEL_STEPS = 16;
-const float ASTEROID_MAX_DISTANCE = .67; 
-const int   FBM_STEPS = 3;
-const int   ATMOSPHERE_NUM_OUT_SCATTER = 2;
-const int   ATMOSPHERE_NUM_IN_SCATTER = 4;
-#define HIDE_TERRAIN
+// Lighting (Updated to match Shader 2's sun direction)
+#define SUN_DIR normalize(vec3(0.0, 1.0, 6.0))
+#define SUN_COLOR vec3(1.0, 1.0, 0.9) * 3.
+#define AMBIENT_LIGHT vec3(.003)
+#define SPACE_BLUE vec3(0., 0., 0.002)
 
-const vec3  SUN_DIRECTION = vec3( .940721,  .28221626, .18814417 );
-const vec3  SUN_COLOR = vec3(.3, .21, .165);
+// Ray tracing
+#define MAX_BOUNCES 1
+#define EPSILON 1e-3
+#define INFINITY 1e10
 
-float time;
+// Camera Setting
+#define FOCAL 2.0
+const float PI = 3.1415926535;
 
-//-----------------------------------------------------
-// Noise functions
-//-----------------------------------------------------
+//=========//
+//  Types  //
+//=========//
 
-float hash( const in float n ) {
-    return fract(sin(n)*43758.5453123);
+struct Ray {
+  vec3 origin;
+  vec3 direction;
+};
+
+struct Material {
+  vec3 color;
+  float diffuse;
+  float specular;
+};
+
+struct Hit {
+  float len;
+  vec3 normal;
+  Material material;
+};
+
+struct Sphere {
+  vec3 position;
+  float radius;
+};
+
+Hit miss = Hit(INFINITY, vec3(0.), Material(vec3(0.), -1., -1.));
+Sphere planet = Sphere(PLANET_POSITION, PLANET_RADIUS);
+
+//===============================================//
+//  Generic utilities
+//===============================================//
+
+float sphIntersect(in Ray ray, in Sphere sphere) {
+  vec3 oc = ray.origin - sphere.position;
+  float b = dot(oc, ray.direction);
+  float c = dot(oc, oc) - sphere.radius * sphere.radius;
+  float h = b * b - c;
+  if(h < 0.0)
+    return -1.;
+  return -b - sqrt(h);
 }
-float hash( const in vec2 p ) {
-	float h = dot(p,vec2(127.1,311.7));	
-    return fract(sin(h)*43758.5453123);
-}
-float hash( const in vec3 p ) {
-	float h = dot(p,vec3(127.1,311.7,758.5453123));	
-    return fract(sin(h)*43758.5453123);
-}
-vec3 hash31( const in float p) {
-	vec3 h = vec3(1275.231,4461.7,7182.423) * p;	
-    return fract(sin(h)*43758.543123);
-}
-vec3 hash33( const in vec3 p) {
-    return vec3( hash(p), hash(p.zyx), hash(p.yxz) );
-}
 
-float noise( const in  float p ) {    
-    float i = floor( p );
-    float f = fract( p );	
-	float u = f*f*(3.0-2.0*f);
-    return -1.0+2.0* mix( hash( i + 0. ), hash( i + 1. ), u);
-}
-
-float noise( const in  vec2 p ) {    
-    vec2 i = floor( p );
-    vec2 f = fract( p );	
-	vec2 u = f*f*(3.0-2.0*f);
-    return -1.0+2.0*mix( mix( hash( i + vec2(0.0,0.0) ), 
-                     hash( i + vec2(1.0,0.0) ), u.x),
-                mix( hash( i + vec2(0.0,1.0) ), 
-                     hash( i + vec2(1.0,1.0) ), u.x), u.y);
-}
-float noise( const in  vec3 x ) {
+// Procedural noise to replace texture dependency
+float hash(float n) { return fract(sin(n) * 43758.5453123); }
+float noise(vec3 x) {
     vec3 p = floor(x);
     vec3 f = fract(x);
-    f = f*f*(3.0-2.0*f);
-    float n = p.x + p.y*157.0 + 113.0*p.z;
-    return mix(mix(mix( hash(n+  0.0), hash(n+  1.0),f.x),
-                   mix( hash(n+157.0), hash(n+158.0),f.x),f.y),
-               mix(mix( hash(n+113.0), hash(n+114.0),f.x),
-                   mix( hash(n+270.0), hash(n+271.0),f.x),f.y),f.z);
+    f = f * f * (3.0 - 2.0 * f);
+    float n = p.x + p.y * 157.0 + 113.0 * p.z;
+    return mix(mix(mix(hash(n + 0.0), hash(n + 1.0), f.x),
+                   mix(hash(n + 157.0), hash(n + 158.0), f.x), f.y),
+               mix(mix(hash(n + 113.0), hash(n + 114.0), f.x),
+                   mix(hash(n + 270.0), hash(n + 271.0), f.x), f.y), f.z);
 }
 
-float tri( const in vec2 p ) {
-    return 0.5*(cos(6.2831*p.x) + cos(6.2831*p.y));
-   
+float inverseLerp(float v, float minValue, float maxValue) {
+  return (v - minValue) / (maxValue - minValue);
 }
 
-const mat2 m2 = mat2( 0.80, -0.60, 0.60, 0.80 );
-
-float fbm( in vec2 p ) {
-    float f = 0.0;
-    f += 0.5000*noise( p ); p = m2*p*2.02;
-    f += 0.2500*noise( p ); p = m2*p*2.03;
-    f += 0.1250*noise( p ); 
-    
-#ifndef LOW_QUALITY
-#ifndef VERY_LOW_QUALITY
-    p = m2*p*2.01;
-    f += 0.0625*noise( p );
-#endif
-#endif
-    return f/0.9375;
+float remap(float v, float inMin, float inMax, float outMin, float outMax) {
+  float t = inverseLerp(v, inMin, inMax);
+  return mix(outMin, outMax, t);
 }
 
-float fbm( const in vec3 p, const in float a, const in float f) {
-    float ret = 0.0;    
-    float amp = 1.0;
-    float frq = 1.0;
-    for(int i = 0; i < FBM_STEPS; i++) {
-        float n = pow(noise(p * frq),2.0);
-        ret += n * amp;
-        frq *= f;
-        amp *= a * (pow(n,0.2));
-    }
-    return ret;
+float fbm(vec3 p, int octaves, float persistence, float lacunarity, float exponentiation) {
+  float amplitude = 0.5;
+  float frequency = 3.0;
+  float total = 0.0;
+  float normalization = 0.0;
+
+  for(int i = 0; i < octaves; ++i) {
+    float noiseValue = noise(p * frequency);
+    total += noiseValue * amplitude;
+    normalization += amplitude;
+    amplitude *= persistence;
+    frequency *= lacunarity;
+  }
+
+  total /= normalization;
+  total = total * 0.8 + 0.1;
+  total = pow(total, exponentiation);
+  return total;
 }
 
-//-----------------------------------------------------
-// Lightning functions
-//-----------------------------------------------------
-
-float diffuse( const in vec3 n, const in vec3 l) { 
-    return clamp(dot(n,l),0.,1.);
+mat3 rotateY(float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  return mat3(
+    vec3(c, 0, s),
+    vec3(0, 1, 0),
+    vec3(-s, 0, c)
+  );
 }
 
-float specular( const in vec3 n, const in vec3 l, const in vec3 e, const in float s) {    
-    float nrm = (s + 8.0) / (3.1415 * 8.0);
-    return pow(max(dot(reflect(e,n),l),0.0),s) * nrm;
+mat3 rotateZ(float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  return mat3(
+    vec3(c, -s, 0),
+    vec3(s, c, 0),
+    vec3(0, 0, 1)
+  );
 }
 
-float fresnel( const in vec3 n, const in vec3 e, float s ) {
-    return pow(clamp(1.-dot(n,e), 0., 1.),s);
+mat3 rotate3d(vec3 axis, float angle) {
+  axis = normalize(axis);
+  float s = sin(angle);
+  float c = cos(angle);
+  float oc = 1.0 - c;
+
+  return mat3(
+    oc * axis.x * axis.x + c, oc * axis.x * axis.y - axis.z * s, oc * axis.z * axis.x + axis.y * s,
+    oc * axis.x * axis.y + axis.z * s, oc * axis.y * axis.y + c, oc * axis.y * axis.z - axis.x * s,
+    oc * axis.z * axis.x - axis.y * s, oc * axis.y * axis.z + axis.x * s, oc * axis.z * axis.z + c
+  );
 }
 
-//-----------------------------------------------------
-// Math functions
-//-----------------------------------------------------
-
-vec2 rotate(float angle, vec2 v) {
-    return vec2(cos(angle) * v.x + sin(angle) * v.y, cos(angle) * v.y - sin(angle) * v.x);
+vec3 nmzHash33(vec3 q) {
+  uvec3 p = uvec3(ivec3(q));
+  p = p * uvec3(374761393U, 1103515245U, 668265263U) + p.zxy + p.yzx;
+  p = p.yzx * (p.zxy ^ (p >> 3U));
+  return vec3(p ^ (p >> 16U)) * (1.0 / vec3(0xffffffffU));
 }
 
-float boolSub(float a,float b) { 
-    return max(a,-b); 
-}
-float sphere(vec3 p,float r) {
-	return length(p)-r;
-}
-
-//-----------------------------------------------------
-// Intersection functions (by iq)
-//-----------------------------------------------------
-
-vec3 nSphere( in vec3 pos, in vec4 sph ) {
-    return (pos-sph.xyz)/sph.w;
+// Procedural hash to replace texture dependencies in the camera logic
+float hash11(float p) {
+    p = fract(p * .1031);
+    p *= p + 33.33;
+    p *= p + p;
+    return fract(p);
 }
 
-float iSphere( in vec3 ro, in vec3 rd, in vec4 sph ) {
-	vec3 oc = ro - sph.xyz;
-	float b = dot( oc, rd );
-	float c = dot( oc, oc ) - sph.w*sph.w;
-	float h = b*b - c;
-	if( h<0.0 ) return -1.0;
-	return -b - sqrt( h );
+vec3 stars(in vec3 p) {
+  vec3 c = vec3(0.);
+  float res = iResolution.x * 0.8;
+
+  for(float i = 0.; i < 5.; i++) {
+    vec3 q = fract(p * (.15 * res)) - 0.5;
+    vec3 id = floor(p * (.15 * res));
+    vec2 rn = nmzHash33(id).xy;
+    float c2 = 1. - smoothstep(0., .6, length(q));
+    c2 *= step(rn.x, .0005 + i * 0.002);
+    c += c2 * (mix(vec3(1.0, 0.49, 0.1), vec3(0.75, 0.9, 1.), rn.y) * 0.25 + 0.75);
+    p *= 1.4;
+  }
+  return c * c;
 }
 
-float iCSphereF( vec3 p, vec3 dir, float r ) {
-	float b = dot( p, dir );
-	float c = dot( p, p ) - r * r;
-	float d = b * b - c;
-	if ( d < 0.0 ) return -MAX;
-	return -b + sqrt( d );
+float domainWarpingFBM(vec3 p) {
+  int octaves = 3;
+  float persistence = .3;
+  float lacunarity = 5.;
+  float expo = 1.;
+
+  vec3 offset = vec3(
+    fbm(p, octaves, persistence, lacunarity, expo), 
+    fbm(p + vec3(43.235, 23.112, 0.0), octaves, persistence, lacunarity, expo), 
+    0.0
+  );
+
+  return fbm(p + 1. * offset, 2, persistence, lacunarity, expo);
 }
 
-vec2 iCSphere2( vec3 p, vec3 dir, float r ) {
-	float b = dot( p, dir );
-	float c = dot( p, p ) - r * r;
-	float d = b * b - c;
-	if ( d < 0.0 ) return vec2( MAX, -MAX );
-	d = sqrt( d );
-	return vec2( -b - d, -b + d );
+vec3 simpleReinhardToneMapping(vec3 color) {
+  float exposure = 1.5;
+  color *= exposure / (1. + color / exposure);
+  color = pow(color, vec3(1. / 2.4));
+  return color;
 }
 
-vec3 nPlane( in vec3 ro, in vec4 obj ) {
-    return obj.xyz;
+// Shader 2 Sun Phase Function
+float phaseFunction(float cos_theta, float g) {
+    float a = (3.0 * (1.0 - g*g)) / (2.0 * (2.0 + g*g));
+    float b = (1.0 + cos_theta*cos_theta) / pow(1.0 + g*g - 2.0 * g * cos_theta, 1.5);
+    return a * b;
 }
 
-float iPlane( in vec3 ro, in vec3 rd, in vec4 pla ) {
-    return (-pla.w - dot(pla.xyz,ro)) / dot( pla.xyz, rd );
+//========//
+//  Misc  //
+//========//
+
+float planetNoise(vec3 p) {
+  float fbm = fbm(p * .8, 6, .5, 2., 5.) * NOISE_STRENGTH;
+  return mix(
+    fbm / 3. + NOISE_STRENGTH / 50., 
+    fbm, 
+    smoothstep(SAND_LEVEL, SAND_LEVEL + TRANSITION / 2., fbm * 5.)
+  );
 }
 
-//-----------------------------------------------------
-// Wet stone by TDM
-// 
-// https://www.shadertoy.com/view/ldSSzV
-//-----------------------------------------------------
+float planetDist(in vec3 ro, in vec3 rd) {
+  Ray ray = Ray(ro, rd);
+  float smoothSphereDist = sphIntersect(ray, planet);
 
-const float ASTEROID_TRESHOLD 	= 0.001;
-const float ASTEROID_EPSILON 	= 1e-6;
-const float ASTEROID_DISPLACEMENT = 0.1;
-const float ASTEROID_RADIUS = 0.13;
+  vec3 intersection = ro + smoothSphereDist * rd;
+  vec3 intersectionWithRotation = (intersection - PLANET_POSITION) * PLANET_ROTATION + PLANET_POSITION;
 
-const vec3  RING_COLOR_1 = vec3(0.42,0.3,0.2);
-const vec3  RING_COLOR_2 = vec3(0.41,0.51,0.52);
-
-float asteroidRock( const in vec3 p, const in vec3 id ) {  
-    float d = sphere(p,ASTEROID_RADIUS);    
-    for(int i = 0; i < ASTEROID_NUM_BOOL_SUB; i++) {
-        float ii = float(i)+id.x;
-        float r = (ASTEROID_RADIUS*2.5) + ASTEROID_RADIUS*hash(ii);
-        vec3 v = normalize(hash31(ii) * 2.0 - 1.0);
-    	d = boolSub(d,sphere(p+v*r,r * 0.8));       
-    }
-    return d;
+  return sphIntersect(ray, Sphere(PLANET_POSITION, PLANET_RADIUS + planetNoise(intersectionWithRotation)));
 }
 
-float asteroidMap( const in vec3 p, const in vec3 id) {
-    float d = asteroidRock(p, id) + noise(p*4.0) * ASTEROID_DISPLACEMENT;
-    return d;
+vec3 planetNormal(vec3 p) {
+  vec3 rd = PLANET_POSITION - p;
+  float dist = planetDist(p, rd);
+  vec2 e = vec2(.01, 0);
+
+  vec3 normal = dist - vec3(planetDist(p - e.xyy, rd), planetDist(p - e.yxy, rd), planetDist(p + e.yyx, rd));
+  return normalize(normal);
 }
 
-float asteroidMapDetailed( const in vec3 p, const in vec3 id) {
-    float d = asteroidRock(p, id) + fbm(p*4.0,0.4,2.96) * ASTEROID_DISPLACEMENT;
-    return d;
+vec3 currentMoonPosition() {
+  mat3 moonRotation = rotate3d(MOON_ROTATION_AXIS, iTime * MOON_ROTATION_SPEED);
+  return MOON_OFFSET * moonRotation + PLANET_POSITION;
 }
 
-void asteroidTransForm(inout vec3 ro, const in vec3 id ) {
-    float xyangle = (id.x-.5)*time*2.;
-    ro.xy = rotate( xyangle, ro.xy );
-    
-    float yzangle = (id.y-.5)*time*2.;
-    ro.yz = rotate( yzangle, ro.yz );
-}
+vec3 spaceColor(vec3 direction) {
+  mat3 backgroundRotation = rotateY(-iTime * ROTATION_SPEED / 4.);
+  vec3 backgroundCoord = direction * backgroundRotation;
+  float spaceNoise = fbm(backgroundCoord * 3., 4, .5, 2., 6.);
 
-void asteroidUnTransForm(inout vec3 ro, const in vec3 id ) {
-    float yzangle = (id.y-.5)*time*2.;
-    ro.yz = rotate( -yzangle, ro.yz );
-
-    float xyangle = (id.x-.5)*time*2.;
-    ro.xy = rotate( -xyangle, ro.xy );  
-}
-
-vec3 asteroidGetNormal(vec3 p, vec3 id) {
-    asteroidTransForm( p, id );
-    
-    vec3 n;
-    n.x = asteroidMapDetailed(vec3(p.x+ASTEROID_EPSILON,p.y,p.z), id);
-    n.y = asteroidMapDetailed(vec3(p.x,p.y+ASTEROID_EPSILON,p.z), id);
-    n.z = asteroidMapDetailed(vec3(p.x,p.y,p.z+ASTEROID_EPSILON), id);
-    n = normalize(n-asteroidMapDetailed(p, id));
-    
-    asteroidUnTransForm( n, id );
-    return n;
-}
-
-vec2 asteroidSpheretracing(vec3 ori, vec3 dir, vec3 id) {
-    asteroidTransForm( ori, id );
-    asteroidTransForm( dir, id );
-    
-    vec2 td = vec2(0,1);
-    for(int i = 0; i < ASTEROID_NUM_STEPS && abs(td.y) > ASTEROID_TRESHOLD; i++) {
-        td.y = asteroidMap(ori + dir * td.x, id);
-        td.x += td.y;
-    }
-    return td;
-}
-
-vec3 asteroidGetStoneColor(vec3 p, float c, vec3 l, vec3 n, vec3 e) {
-	return mix( diffuse(n,l)*RING_COLOR_1*SUN_COLOR, SUN_COLOR*specular(n,l,e,3.0), .5*fresnel(n,e,5.));    
-}
-
-//-----------------------------------------------------
-// Ring (by me ;))
-//-----------------------------------------------------
-
-const float RING_DETAIL_DISTANCE = 40.;
-const float RING_VOXEL_STEP_SIZE = .03;
-
-vec3 ringShadowColor( const in vec3 ro ) {
-    if( iSphere( ro, SUN_DIRECTION, vec4( 0., 0., 0., EARTH_RADIUS ) ) > 0. ) {
-        return vec3(0.);
-    }
-    return vec3(1.);
-}
-
-bool ringMap( const in vec3 ro ) {
-    return ro.z < RING_HEIGHT/RING_VOXEL_STEP_SIZE && hash(ro)<.5;
-}
-
-vec4 renderRingNear( const in vec3 ro, const in vec3 rd ) { 
-// find startpoint 
-    float d1 = iPlane( ro, rd, vec4( 0., 0., 1., RING_HEIGHT ) );
-    float d2 = iPlane( ro, rd, vec4( 0., 0., 1., -RING_HEIGHT ) );
-    
-    float d = min( max(d1,0.), max(d2,0.) );
-   
-    if( (d1 < 0. && d2 < 0.) || d > ASTEROID_MAX_DISTANCE ) {
-        return vec4( 0. );
-    } else {
-        vec3 ros = ro + rd*d;
-
-        // avoid precision problems..
-        vec2 mroxy = mod(ros.xy, vec2(10.));
-        vec2 roxy = ros.xy - mroxy;
-        ros.xy -= roxy;
-        ros /= RING_VOXEL_STEP_SIZE;
-        //ros.xy -= vec2(.013,.112)*time*.5;
-
-        vec3 pos = floor(ros);
-        vec3 ri = 1.0/rd;
-        vec3 rs = sign(rd);
-        vec3 dis = (pos-ros + 0.5 + rs*0.5) * ri;
-
-        float alpha = 0., dint;
-        vec3 offset = vec3(0), id, asteroidro;
-        vec2 asteroid = vec2(0);
-
-        for( int i=0; i<RING_VOXEL_STEPS; i++ ) {
-            if( ringMap(pos) ) {
-                id = hash33(pos);
-                offset = id*(1.-2.*ASTEROID_RADIUS)+ASTEROID_RADIUS;
-                dint = iSphere( ros, rd, vec4(pos+offset, ASTEROID_RADIUS) );
-
-                if( dint > 0. ) {
-                    asteroidro = ros+rd*dint-(pos+offset);
-                    asteroid = asteroidSpheretracing( asteroidro, rd, id );
-
-                    if( asteroid.y < .1 ) {
-                        alpha = 1.;
-                        break;	    
-                    }
-                }
-
-            }
-            vec3 mm = step(dis.xyz, dis.yxy) * step(dis.xyz, dis.zzx);
-            dis += mm * rs * ri;
-            pos += mm * rs;
-        }
-
-        if( alpha > 0. ) {       
-            vec3 intersection = ros + rd*(asteroid.x+dint);
-            vec3 n = asteroidGetNormal( asteroidro + rd*asteroid.x, id );
-
-            vec3 col = asteroidGetStoneColor(intersection, .1, SUN_DIRECTION, n, rd);
-
-            intersection *= RING_VOXEL_STEP_SIZE;
-            intersection.xy += roxy;
-          //  col *= ringShadowColor( intersection );
-
-            return vec4( col, 1.-smoothstep(0.4*ASTEROID_MAX_DISTANCE, 0.5* ASTEROID_MAX_DISTANCE, distance( intersection, ro ) ) );
-        } else {
-            return vec4(0.);
-        }
-    }
-}
-
-//-----------------------------------------------------
-// Ring (by me ;))
-//-----------------------------------------------------
-
-float renderRingFarShadow( const in vec3 ro, const in vec3 rd ) {
-    // intersect plane
-    float d = iPlane( ro, rd, vec4( 0., 0., 1., 0.) );
-    
-    if( d > 0. ) {
-	    vec3 intersection = ro + rd*d;
-        float l = length(intersection.xy);
-        
-        if( l > RING_INNER_RADIUS && l < RING_OUTER_RADIUS ) {
-            return .5 + .5 * (.2+.8*noise( l*.07 )) * (.5+.5*noise(intersection.xy));
-        } else {
-            return 0.;
-        }
-    } else {
-	    return 0.;
-    }
-}
-
-vec4 renderRingFar( const in vec3 ro, const in vec3 rd, inout float maxd ) {
-    // intersect plane
-    float d = iPlane( ro, rd, vec4( 0., 0., 1., 0.) );
-    
-    if( d > 0. && d < maxd ) {
-        maxd = d;
-	    vec3 intersection = ro + rd*d;
-        float l = length(intersection.xy);
-        
-        if( l > RING_INNER_RADIUS && l < RING_OUTER_RADIUS ) {
-            float dens = .5 + .5 * (.2+.8*noise( l*.07 )) * (.5+.5*noise(intersection.xy));
-            vec3 col = mix( RING_COLOR_1, RING_COLOR_2, abs( noise(l*0.2) ) ) * abs(dens) * 1.5;
-            
-            col *= ringShadowColor( intersection );
-    		col *= .8+.3*diffuse( vec3(0,0,1), SUN_DIRECTION );
-			col *= SUN_COLOR;
-            return vec4( col, dens );
-        } else {
-            return vec4(0.);
-        }
-    } else {
-	    return vec4(0.);
-    }
-}
-
-vec4 renderRing( const in vec3 ro, const in vec3 rd, inout float maxd ) {
-    vec4 far = renderRingFar( ro, rd, maxd );
-    float l = length( ro.xy );
-
-    if( abs(ro.z) < RING_HEIGHT+RING_DETAIL_DISTANCE 
-        && l < RING_OUTER_RADIUS+RING_DETAIL_DISTANCE 
-        && l > RING_INNER_RADIUS-RING_DETAIL_DISTANCE ) {
-     	
-	    float d = iPlane( ro, rd, vec4( 0., 0., 1., 0.) );
-        float detail = mix( .5 * noise( fract(ro.xy+rd.xy*d) * 92.1)+.25, 1., smoothstep( 0.,RING_DETAIL_DISTANCE, d) );
-        far.xyz *= detail;    
-    }
-    
-	// are asteroids neaded ?
-    if( abs(ro.z) < RING_HEIGHT+ASTEROID_MAX_DISTANCE 
-        && l < RING_OUTER_RADIUS+ASTEROID_MAX_DISTANCE 
-        && l > RING_INNER_RADIUS-ASTEROID_MAX_DISTANCE ) {
-        
-        vec4 near = renderRingNear( ro, rd );
-        far = mix( far, near, near.w );
-        maxd=0.;
-    }
-            
-    return far;
-}
-
-//-----------------------------------------------------
-// Stars (by me ;))
-//-----------------------------------------------------
-
-vec4 renderStars( const in vec3 rd ) {
-	vec3 rds = rd;
-	vec3 col = vec3(0);
-    float v = 1.0/( 2. * ( 1. + rds.z ) );
-    
-    vec2 xy = vec2(rds.y * v, rds.x * v);
-    float s = noise(rds*134.);
-    
-    s += noise(rds*470.);
-    s = pow(s,19.0) * 0.00001;
-    if (s > 0.5) {
-        vec3 backStars = vec3(s)*.5 * vec3(0.95,0.8,0.9); 
-        col += backStars;
-    }
-	return   vec4( col, 1 ); 
-} 
-
-//-----------------------------------------------------
-// Atmospheric Scattering by GLtracy
-// 
-// https://www.shadertoy.com/view/lslXDr
-//-----------------------------------------------------
-
-const float ATMOSPHERE_K_R = 0.166;
-const float ATMOSPHERE_K_M = 0.0025;
-const float ATMOSPHERE_E = 12.3;
-const vec3  ATMOSPHERE_C_R = vec3( 0.3, 0.7, 1.0 );
-const float ATMOSPHERE_G_M = -0.85;
-
-const float ATMOSPHERE_SCALE_H = 4.0 / ( EARTH_ATMOSPHERE );
-const float ATMOSPHERE_SCALE_L = 1.0 / ( EARTH_ATMOSPHERE );
-
-const float ATMOSPHERE_FNUM_OUT_SCATTER = float(ATMOSPHERE_NUM_OUT_SCATTER);
-const float ATMOSPHERE_FNUM_IN_SCATTER = float(ATMOSPHERE_NUM_IN_SCATTER);
-
-const int   ATMOSPHERE_NUM_OUT_SCATTER_LOW = 2;
-const int   ATMOSPHERE_NUM_IN_SCATTER_LOW = 4;
-const float ATMOSPHERE_FNUM_OUT_SCATTER_LOW = float(ATMOSPHERE_NUM_OUT_SCATTER_LOW);
-const float ATMOSPHERE_FNUM_IN_SCATTER_LOW = float(ATMOSPHERE_NUM_IN_SCATTER_LOW);
-
-float atmosphericPhaseMie( float g, float c, float cc ) {
-	float gg = g * g;
-	float a = ( 1.0 - gg ) * ( 1.0 + cc );
-	float b = 1.0 + gg - 2.0 * g * c;
-    
-	b *= sqrt( b );
-	b *= 2.0 + gg;	
-	
-	return 1.5 * a / b;
-}
-
-float atmosphericPhaseReyleigh( float cc ) {
-	return 0.75 * ( 1.0 + cc );
-}
-
-float atmosphericDensity( vec3 p ){
-	return exp( -( length( p ) - EARTH_RADIUS ) * ATMOSPHERE_SCALE_H );
-}
-
-float atmosphericOptic( vec3 p, vec3 q ) {
-	vec3 step = ( q - p ) / ATMOSPHERE_FNUM_OUT_SCATTER;
-	vec3 v = p + step * 0.5;
-	
-	float sum = 0.0;
-	for ( int i = 0; i < ATMOSPHERE_NUM_OUT_SCATTER; i++ ) {
-		sum += atmosphericDensity( v );
-		v += step;
-	}
-	sum *= length( step ) * ATMOSPHERE_SCALE_L;
-	
-	return sum;
-}
-
-vec4 atmosphericInScatter( vec3 o, vec3 dir, vec2 e, vec3 l ) {
-	float len = ( e.y - e.x ) / ATMOSPHERE_FNUM_IN_SCATTER;
-	vec3 step = dir * len;
-	vec3 p = o + dir * e.x;
-	vec3 v = p + dir * ( len * 0.5 );
-
-    float sumdensity = 0.;
-	vec3 sum = vec3( 0.0 );
-
-    for ( int i = 0; i < ATMOSPHERE_NUM_IN_SCATTER; i++ ) {
-        vec3 u = v + l * iCSphereF( v, l, EARTH_RADIUS + EARTH_ATMOSPHERE );
-		float n = ( atmosphericOptic( p, v ) + atmosphericOptic( v, u ) ) * ( PI * 4.0 );
-		float dens = atmosphericDensity( v );
+  vec3 color = stars(backgroundCoord) + mix(SPACE_BLUE, ATMOSPHERE_COLOR / 4., spaceNoise);
   
-	    float m = MAX;
-		sum += dens * exp( -n * ( ATMOSPHERE_K_R * ATMOSPHERE_C_R + ATMOSPHERE_K_M ) ) 
-    		* (1. - renderRingFarShadow( u, SUN_DIRECTION ) );
- 		sumdensity += dens;
-        
-		v += step;
-	}
-	sum *= len * ATMOSPHERE_SCALE_L;
-	
-	float c  = dot( dir, -l );
-	float cc = c * c;
-	
-	return vec4( sum * ( ATMOSPHERE_K_R * ATMOSPHERE_C_R * atmosphericPhaseReyleigh( cc ) + 
-                         ATMOSPHERE_K_M * atmosphericPhaseMie( ATMOSPHERE_G_M, c, cc ) ) * ATMOSPHERE_E, 
-                	     clamp(sumdensity * len * ATMOSPHERE_SCALE_L,0.,1.));
+  // Add Sun Glare from Shader 2
+  float cos_theta = dot(SUN_DIR, direction);
+  float phase = phaseFunction(cos_theta, -0.99);
+  color += vec3(1.5, 1.3, 0.9) * 0.01 * phase;
+  
+  return color;
 }
 
-float atmosphericOpticLow( vec3 p, vec3 q ) {
-	vec3 step = ( q - p ) / ATMOSPHERE_FNUM_OUT_SCATTER_LOW;
-	vec3 v = p + step * 0.5;
-	
-	float sum = 0.0;
-	for ( int i = 0; i < ATMOSPHERE_NUM_OUT_SCATTER_LOW; i++ ) {
-		sum += atmosphericDensity( v );
-		v += step;
-	}
-	sum *= length( step ) * ATMOSPHERE_SCALE_L;
-	
-	return sum;
+//===============//
+//  Ray Tracing  //
+//===============//
+
+Hit intersectPlanet(Ray ray) {
+  float len = sphIntersect(ray, planet);
+  if(len < 0.) return miss;
+
+  vec3 position = ray.origin + len * ray.direction;
+  vec3 rotatedCoord = (position - PLANET_POSITION) * PLANET_ROTATION + PLANET_POSITION;
+  float altitude = 5. * planetNoise(rotatedCoord);
+
+  vec3 normal = planetNormal(position);
+
+  vec3 color = mix(WATER_COLOR_DEEP, WATER_COLOR_SURFACE, smoothstep(WATER_SURFACE_LEVEL, WATER_SURFACE_LEVEL + TRANSITION, altitude));
+  color = mix(color, SAND_COLOR, smoothstep(SAND_LEVEL, SAND_LEVEL + TRANSITION / 2., altitude));
+  color = mix(color, TREE_COLOR, smoothstep(TREE_LEVEL, TREE_LEVEL + TRANSITION, altitude));
+  color = mix(color, ROCK_COLOR, smoothstep(ROCK_LEVEL, ROCK_LEVEL + TRANSITION, altitude));
+  color = mix(color, ICE_COLOR, smoothstep(ICE_LEVEL, ICE_LEVEL + TRANSITION, altitude));
+
+  vec3 cloudsCoord = rotateY(iTime * -.005) * rotatedCoord + vec3(iTime * .008);
+  float cloudsDensity = remap(domainWarpingFBM(cloudsCoord), -1.0, 1.0, 0.0, 1.0);
+  cloudsDensity *= smoothstep(.75, .85, cloudsDensity);
+  cloudsDensity *= smoothstep(ROCK_LEVEL, (ROCK_LEVEL + TREE_LEVEL) / 2., altitude);
+  color = mix(color, CLOUD_COLOR, cloudsDensity);
+
+  float specular = smoothstep(SAND_LEVEL + TRANSITION, SAND_LEVEL, altitude);
+  return Hit(len, normal, Material(color, 1., specular));
 }
 
-vec3 atmosphericInScatterLow( vec3 o, vec3 dir, vec2 e, vec3 l ) {
-	float len = ( e.y - e.x ) / ATMOSPHERE_FNUM_IN_SCATTER_LOW;
-	vec3 step = dir * len;
-	vec3 p = o + dir * e.x;
-	vec3 v = p + dir * ( len * 0.5 );
+Hit intersectMoon(Ray ray) {
+  vec3 moonPosition = currentMoonPosition();
+  float length = sphIntersect(ray, Sphere(moonPosition, MOON_RADIUS));
+  if(length < 0.) return miss;
 
-	vec3 sum = vec3( 0.0 );
+  vec3 position = ray.origin + length * ray.direction;
+  vec3 originalPosition = position * rotate3d(MOON_ROTATION_AXIS, -iTime * MOON_ROTATION_SPEED);
+  vec3 color = vec3(sqrt(fbm(originalPosition * 12., 6, .5, 2., 5.)));
+  vec3 normal = normalize(position - moonPosition);
 
-    for ( int i = 0; i < ATMOSPHERE_NUM_IN_SCATTER_LOW; i++ ) {
-		vec3 u = v + l * iCSphereF( v, l, EARTH_RADIUS + EARTH_ATMOSPHERE );
-		float n = ( atmosphericOpticLow( p, v ) + atmosphericOpticLow( v, u ) ) * ( PI * 4.0 );
-	    float m = MAX;
-		sum += atmosphericDensity( v ) * exp( -n * ( ATMOSPHERE_K_R * ATMOSPHERE_C_R + ATMOSPHERE_K_M ) );
-		v += step;
-	}
-	sum *= len * ATMOSPHERE_SCALE_L;
-	
-	float c  = dot( dir, -l );
-	float cc = c * c;
-	
-	return sum * ( ATMOSPHERE_K_R * ATMOSPHERE_C_R * atmosphericPhaseReyleigh( cc ) + 
-                   ATMOSPHERE_K_M * atmosphericPhaseMie( ATMOSPHERE_G_M, c, cc ) ) * ATMOSPHERE_E;
+  return Hit(length, normal, Material(color, 1., 0.));
 }
 
-//-----------------------------------------------------
-// Terrain placeholders
-//-----------------------------------------------------
-
-vec4 renderTerrain( const in vec3 ro, const in vec3 rd, const in vec3 intersection, inout vec3 n ) {
-    return vec4(-1.);
+Hit intersectScene(Ray ray) {
+  Hit planetHit = intersectPlanet(ray);
+  Hit moonHit = intersectMoon(ray);
+  if(moonHit.len < planetHit.len) return moonHit;
+  return planetHit;
 }
 
-vec3 terrainUntransform( in vec3 x ) {
-    return x;
-}
+vec3 radiance(Ray ray, inout float spaceMask) {
+  vec3 color = vec3(0.0);
+  vec3 attenuation = vec3(1.0);
 
-vec3 terrainTransformRo( in vec3 x ) {
-    return x;
-}
+  for(int i = 1; i <= MAX_BOUNCES; i++) {
+    Hit hit = intersectScene(ray);
 
-vec3 terrainTransform( in vec3 x ) {
-    return x;
-}
+    if(hit.len < INFINITY) {
+      spaceMask = 0.;
+      vec3 hitPosition = ray.origin + hit.len * ray.direction;
+      Hit shadowHit = intersectScene(Ray(hitPosition + EPSILON * SUN_DIR, SUN_DIR));
+      float hitDirectLight = clamp(
+        step(INFINITY, shadowHit.len) 
+        + step(length(hitPosition - PLANET_POSITION) - PLANET_RADIUS, .1), 
+        0., 1.
+      );
 
-vec3 terrainGetColor( const in vec3 p, const in vec3 rd, const in float d, const in vec3 sunColor, const in vec3 upColor, const in vec3 reflColor ) {
-    return vec3(0.);
-}
+      float directLightIntensity = pow(clamp(dot(hit.normal, SUN_DIR), 0.0, 1.0), 2.); 
+      vec3 diffuseLight = hitDirectLight * directLightIntensity * SUN_COLOR;
+      vec3 diffuseColor = hit.material.color.rgb * (AMBIENT_LIGHT + diffuseLight);
 
-//-----------------------------------------------------
-// Llamel placeholders
-//-----------------------------------------------------
+      vec3 reflected = normalize(reflect(SUN_DIR, hit.normal));
+      float phongValue = pow(max(0.0, dot(ray.direction, reflected)), 10.) * .6;
+      vec3 specularColor = hit.material.specular * vec3(phongValue);
 
-vec3 llamelPosition() {
-    return vec3(0.);
-}
+      color += attenuation * (diffuseColor + specularColor);
+      attenuation *= hit.material.specular;
 
-const float llamelScale = 1.;
+      vec3 reflection = reflect(ray.direction, hit.normal);
+      ray = Ray(ray.origin + hit.len * ray.direction + EPSILON * reflection, reflection);
 
-vec4 renderLlamel( const in vec3 ro, const in vec3 rd, const in vec3 sunColor, const in vec3 upColor, const in vec3 reflColor ) {
-    return vec4(0.);
-}
-
-//-----------------------------------------------------
-// Clouds placeholder
-//-----------------------------------------------------
-
-vec4 renderClouds( const in vec3 ro, const in vec3 rd, const in float d, const in vec3 n, const in float e, const in vec3 sunColor, const in vec3 upColor, out float shadow ) {
-    shadow = 1.;
-    return vec4(0.);
-}
-
-vec4 renderAtmospheric( const in vec3 ro, const in vec3 rd, inout float d ) {    
-    // inside or outside atmosphere?
-    vec2 e = iCSphere2( ro, rd, EARTH_RADIUS + EARTH_ATMOSPHERE );
-	vec2 f = iCSphere2( ro, rd, EARTH_RADIUS );
-        
-    if( length(ro) <= EARTH_RADIUS + EARTH_ATMOSPHERE ) {
-        if( d < e.y ) {
-            e.y = d;
-        }
-		d = e.y;
-	    e.x = 0.;
-        
-	    if ( iSphere( ro, rd, vec4(0,0,0,EARTH_RADIUS)) > 0. ) {
-	        d = iSphere( ro, rd, vec4(0,0,0,EARTH_RADIUS));
-		}
     } else {
-    	if(  iSphere( ro, rd, vec4(0,0,0,EARTH_RADIUS + EARTH_ATMOSPHERE )) < 0. ) return vec4(0.);
-        
-        if ( e.x > e.y ) {
-        	d = MAX;
-			return vec4(0.);
-		}
-		d = e.y = min( e.y, f.x );
+      if(spaceMask == 1.) {
+        color += attenuation * spaceColor(ray.direction);
+      }
+      break;
     }
-	return atmosphericInScatter( ro, rd, e, SUN_DIRECTION );
+  }
+  return color;
 }
 
-vec3 renderAtmosphericLow( const in vec3 ro, const in vec3 rd ) {    
-    vec2 e = iCSphere2( ro, rd, EARTH_RADIUS + EARTH_ATMOSPHERE );
-    e.x = 0.;
-    return atmosphericInScatterLow( ro, rd, e, SUN_DIRECTION );
+vec3 atmosphereColor(vec3 ro, vec3 rd, float spaceMask) {
+  float planetDist = sphIntersect(Ray(ro, rd), planet);
+  float moonDist = sphIntersect(Ray(ro, rd), Sphere(currentMoonPosition(), MOON_RADIUS));
+  float closestHit = planetDist;
+  if (planetDist < 0. || (moonDist >= 0. && moonDist < planetDist)) {
+    closestHit = moonDist;
+  }
+  vec3 position = ro + closestHit * rd;
+  
+  float distCameraToPlanetOrigin = length(PLANET_POSITION - ro);
+  float distCameraToPlanetEdge = sqrt(max(0.0, distCameraToPlanetOrigin * distCameraToPlanetOrigin - PLANET_RADIUS * PLANET_RADIUS));
+  float distCameraToMoon = length(currentMoonPosition() - ro);
+  float isMoonInFront = smoothstep(-PLANET_RADIUS/2., PLANET_RADIUS/2., distCameraToPlanetEdge - distCameraToMoon);
+
+  float moonMask = (1.0 - spaceMask) * step(PLANET_RADIUS + EPSILON, length(position - PLANET_POSITION));
+  float planetMask = 1.0 - spaceMask - moonMask;
+
+  vec3 coordFromCenter = (ro + rd * distCameraToPlanetEdge) - PLANET_POSITION;
+  float distFromEdge = abs(length(coordFromCenter) - PLANET_RADIUS);
+  float planetEdge = max(1. - distFromEdge, 0.);
+  float atmosphereDensity = pow(clamp(remap(dot(-SUN_DIR, coordFromCenter), -2., 1., 0., 1.), 0., 1.), 5.);
+
+  vec3 atmosphere = pow(planetEdge, 80.) * ATMOSPHERE_COLOR;
+  atmosphere += pow(planetEdge, 30.) * ATMOSPHERE_COLOR * (1.5 - planetMask);
+  atmosphere += pow(planetEdge, 4.) * ATMOSPHERE_COLOR * .02;
+  atmosphere += pow(planetEdge, 2.) * ATMOSPHERE_COLOR * .1 * planetMask;
+
+  return atmosphere * atmosphereDensity * (1. - moonMask * isMoonInFront);
 }
 
-//-----------------------------------------------------
-// Seascape by TDM
-// 
-// https://www.shadertoy.com/view/Ms2SD1
-//-----------------------------------------------------
+//=============================//
+//  Cinematic Camera & Main
+//=============================//
 
-const int   SEA_ITER_GEOMETRY = 3;
-const int   SEA_ITER_FRAGMENT = 5;
-
-const float SEA_EPSILON	= 1e-3;
-#define       SEA_EPSILON_NRM	(0.1 / iResolution.x)
-const float SEA_HEIGHT = 0.6;
-const float SEA_CHOPPY = 4.0;
-const float SEA_SPEED = 0.8;
-const float SEA_FREQ = 0.16;
-const vec3  SEA_BASE = vec3(0.1,0.19,0.22);
-const vec3  SEA_WATER_COLOR = vec3(0.8,0.9,0.6);
-float       SEA_TIME;
-const mat2  sea_octave_m = mat2(1.6,1.2,-1.2,1.6);
-
-float seaOctave( in vec2 uv, const in float choppy) {
-    uv += noise(uv);        
-    vec2 wv = 1.0-abs(sin(uv));
-    vec2 swv = abs(cos(uv));    
-    wv = mix(wv,swv,wv);
-    return pow(1.0-pow(wv.x * wv.y,0.65),choppy);
+mat3 setCamera(in vec3 ro, in vec3 ta, float cr) {
+    vec3 cw = normalize(ta - ro);
+    vec3 cp = vec3(sin(cr), cos(cr), 0.0);
+    vec3 cu = normalize(cross(cw, cp));
+    vec3 cv = normalize(cross(cu, cw));
+    return mat3(cu, cv, cw);
 }
 
-float seaMap(const in vec3 p) {
-    float freq = SEA_FREQ;
-    float amp = SEA_HEIGHT;
-    float choppy = SEA_CHOPPY;
-    vec2 uv = p.xz; uv.x *= 0.75;
-    
-    float d, h = 0.0;    
-    for(int i = 0; i < SEA_ITER_GEOMETRY; i++) {        
-    	d = seaOctave((uv+SEA_TIME)*freq,choppy);
-    	d += seaOctave((uv-SEA_TIME)*freq,choppy);
-        h += d * amp;        
-    	uv *= sea_octave_m; freq *= 1.9; amp *= 0.22;
-        choppy = mix(choppy,1.0,0.2);
-    }
-    return p.y - h;
+vec3 sph(float theta, float phi, float r) {
+    return r * vec3(sin(phi)*cos(theta), cos(phi), sin(phi)*sin(theta));
 }
 
-float seaMapHigh(const in vec3 p) {
-    float freq = SEA_FREQ;
-    float amp = SEA_HEIGHT;
-    float choppy = SEA_CHOPPY;
-    vec2 uv = p.xz; uv.x *= 0.75;
+void getRay(in vec2 fragCoord, out vec3 ro, out vec3 rd, out float fade) {
+    float r = PLANET_RADIUS;
+    vec3 top = vec3(0.0, r * 1.0001, 0.0);
+
+    const float SEGMENT_DURATION = 5.5;
+    float t = iTime;
+    float segment = trunc(t / SEGMENT_DURATION);
+    float segT = mod(t, SEGMENT_DURATION) / SEGMENT_DURATION;
     
-    float d, h = 0.0;    
-    for(int i = 0; i < SEA_ITER_FRAGMENT; i++) {        
-    	d = seaOctave((uv+SEA_TIME)*freq,choppy);
-    	d += seaOctave((uv-SEA_TIME)*freq,choppy);
-        h += d * amp;        
-    	uv *= sea_octave_m; freq *= 1.9; amp *= 0.22;
-        choppy = mix(choppy,1.0,0.2);
-    }
-    return p.y - h;
+    float fadePercent = 0.12;
+    fade = smoothstep(0.0, fadePercent, segT) * (1.0 - smoothstep(1.0 - fadePercent, 1.0, segT));
+    if (t/SEGMENT_DURATION<0.5) fade = 1.0;
+    
+    float s = (segment+10.0)/202.0;
+    float rand1 = hash11(s);
+    float rand2 = hash11(s + 0.1);
+    float rand3 = hash11(s + 0.2);
+    
+    float thetaCoef = rand1;
+    float thetaSign = sign(rand2-0.5);
+    if(thetaSign == 0.0) thetaSign = 1.0;
+    float theta = PI*0.5 + thetaSign * mix(0.4, 1.1, thetaCoef);
+    float phi = PI*0.5 + PI*0.27 * mix(-1.0, 1.0, rand3); 
+    
+    float maxH = mix(r*6.0, r*3.0, thetaCoef); 
+    float h = mix(r*1.1, maxH, rand2);
+    
+    vec3 start = vec3(theta, phi, h);    
+    vec3 end = start;
+    end.x += thetaSign * PI * 0.35 / (1.0+thetaCoef);
+    
+    float maxZChange = r*2.5;
+    float minZ = r * 1.0001;
+    float tgtZ = max(start.z * 0.3, minZ);
+    float change = min(start.z - tgtZ, maxZChange);
+    end.z = start.z - change;
+    
+    vec3 cur = mix(start, end, segT);        
+    ro = sph(cur.x, cur.y, cur.z);
+    
+    vec3 dirTop = normalize(top - ro);
+    vec3 dirSun = -SUN_DIR;
+    vec3 dir = mix(dirSun, dirTop, 0.4);
+    vec3 tgt = ro + dir * r;
+    
+    mat3 cam = setCamera(ro, tgt, 0.0);    
+    vec2 p = (-iResolution.xy + 2.0*fragCoord) / iResolution.y;
+    rd = cam * normalize(vec3(p.xy, FOCAL));        
 }
 
-vec3 seaGetColor( const in vec3 n, vec3 eye, const in vec3 l, const in float att, 
-                  const in vec3 sunc, const in vec3 upc, const in vec3 reflected) {  
-    vec3 refracted = SEA_BASE * upc + diffuse(n,l) * SEA_WATER_COLOR * 0.12 * sunc; 
-    vec3 color = mix(refracted,reflected,fresnel(n, -eye, 3.)*.65 );
-    
-    color += upc*SEA_WATER_COLOR * (att * 0.18);
-    color += sunc * vec3(specular(n,l,eye,60.0));
-    
-    return color;
-}
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+  float fade;
+  vec3 ro, rd;
+  
+  // Dynamic camera sequence
+  getRay(fragCoord, ro, rd, fade);
+  Ray ray = Ray(ro, rd);
 
-vec3 seaGetNormal(const in vec3 p, const in float eps) {
-    vec3 n;
-    n.y = seaMapHigh(p);    
-    n.x = seaMapHigh(vec3(p.x+eps,p.y,p.z)) - n.y;
-    n.z = seaMapHigh(vec3(p.x,p.y,p.z+eps)) - n.y;
-    n.y = eps;
-    return normalize(n);
-}
+  float spaceMask = 1.;
+  vec3 color = radiance(ray, spaceMask);
+  color += atmosphereColor(ro, rd, spaceMask);
 
-float seaHeightMapTracing(const in vec3 ori, const in vec3 dir, out vec3 p) {  
-    float tm = 0.0;
-    float tx = 1000.0;    
-    float hx = seaMap(ori + dir * tx);
-    if(hx > 0.0) return tx;   
-    float hm = seaMap(ori + dir * tm);    
-    float tmid = 0.0;
-    for(int i = 0; i < SEA_NUM_STEPS; i++) {
-        tmid = mix(tm,tx, hm/(hm-hx));                   
-        p = ori + dir * tmid;                   
-    	float hmid = seaMap(p);
-		if(hmid < 0.0) {
-        	tx = tmid;
-            hx = hmid;
-        } else {
-            tm = tmid;
-            hm = hmid;
-        }
-    }
-    return tmid;
-}
+  // Color grading
+  color = simpleReinhardToneMapping(color);
 
-vec3 seaTransform( in vec3 x ) {
-    x.yz = rotate( 0.8, x.yz );
-    return x;
-}
+  // Vignette
+  vec2 uv = (fragCoord / iResolution.xy - 0.5) * iResolution.xy / iResolution.y;
+  color *= 1. - 0.5 * pow(length(uv), 3.);
+  
+  // Camera cuts fade effect
+  color *= fade;
 
-vec3 seaUntransform( in vec3 x ) {
-    x.yz = rotate( -0.8, x.yz );
-    return x;
-}
-
-void renderSea( const in vec3 ro, const in vec3 rd, inout vec3 n, inout float att ) {    
-    vec3 p,
-    rom = seaTransform(ro),
-    rdm = seaTransform(rd);
-    
-    rom.y -= EARTH_RADIUS;
-    rom *= 1000.;
-    rom.xz += vec2(3.1,.2)*time;
-
-    SEA_TIME = time * SEA_SPEED;
-    
-    seaHeightMapTracing(rom,rdm,p);
-    float squareddist = dot(p - rom, p-rom );
-    n = seaGetNormal(p, squareddist * SEA_EPSILON_NRM );
-    
-    n = seaUntransform(n);
-    
-    att = clamp(SEA_HEIGHT+p.y, 0.,1.);
-}
-
-//-----------------------------------------------------
-// Planet (by me ;))
-//-----------------------------------------------------
-
-vec4 renderPlanet( const in vec3 ro, const in vec3 rd, const in vec3 up, inout float maxd ) {
-    float d = iSphere( ro, rd, vec4( 0., 0., 0., EARTH_RADIUS ) );
-
-    vec3 intersection = ro + rd*d;
-    vec3 n = nSphere( intersection, vec4( 0., 0., 0., EARTH_RADIUS ) );
-    vec4 res;
-
-#ifndef HIDE_TERRAIN
-    bool renderTerrainDetail = length(ro) < EARTH_RADIUS+EARTH_ATMOSPHERE && 
-        					   dot( terrainUntransform( vec3(0.,1.,0.) ), normalize(ro) ) > .9996;
-#endif
-    bool renderSeaDetail     = d < 1. && dot( seaUntransform( vec3(0.,1.,0.) ), normalize(ro) ) > .9999; 
-    float mixDetailColor = 0.;
-        
-	if( d < 0. || d > maxd) {
-#ifndef HIDE_TERRAIN
-        if( renderTerrainDetail ) {
-       		intersection = ro;
-            n = normalize( ro );
-        } else { 	       
-	        return vec4(0);
-        }
-#else 
-      	return vec4(0.);
-#endif
-	}
-    if( d > 0. ) {
-	    maxd = d;
-    }
-    float att = 0.;
-    
-    if( dot(n,SUN_DIRECTION) < -0.1 ) return vec4( 0., 0., 0., 1. );
-    
-    float dm = MAX, e = 0.;
-    vec3 col, detailCol, nDetail;
-    
-    // normal and intersection 
-#ifndef HIDE_TERRAIN
-    if( renderTerrainDetail ) {   
-        res = renderTerrain( ro, rd, intersection, nDetail );
-        if( res.x < 0. && d < 0. ) {
-	        return vec4(0);
-        }
-        if( res.x >= 0. ) {
-            maxd = pow(res.x/4000.,4.)*50.;
-            e = -10.;
-        }
-        mixDetailColor = 1.-smoothstep(.75, 1., (length(ro)-EARTH_RADIUS) / EARTH_ATMOSPHERE);
-        n = normalize( mix( n, nDetail, mixDetailColor ) );
-    } else 
-#endif        
-    if( renderSeaDetail ) {    
-        float attsea, mf = smoothstep(.5,1.,d);
-
-        renderSea( ro, rd, nDetail, attsea );
-
-        n = normalize(mix( nDetail, n, mf ));
-        att = mix( attsea, att, mf );
-    } else {
-        e = fbm( .003*intersection+vec3(1.),0.4,2.96) + smoothstep(.85,.95, abs(intersection.z/EARTH_RADIUS));
-#ifndef HIDE_TERRAIN
-        if( d < 1500. ) {
-            e += (-.03+.06* fbm( intersection*0.1,0.4,2.96))*(1.-d/1500.);
-        }
-#endif  
-    }
-    
-    vec3 sunColor = .25*renderAtmosphericLow( intersection, SUN_DIRECTION).xyz;  
-    vec3 upColor = 2.*renderAtmosphericLow( intersection, n).xyz;  
-    vec3 reflColor = renderAtmosphericLow( intersection, reflect(rd,n)).xyz; 
-                 
-    // color  
-#ifndef HIDE_TERRAIN
-    if(renderTerrainDetail ) {
-        detailCol = col =  terrainGetColor(res.yzw, rd, res.x, sunColor, upColor, reflColor);
-		d = 0.;
-    }   
-#endif
-     
-    if( mixDetailColor < 1. ) {
-        if( e < .45 ) {
-            // sea
-            col = seaGetColor(n,rd,SUN_DIRECTION, att, sunColor, upColor, reflColor);    
-        } else {
-            // planet (land) far
-            float land1 = max(0.1, fbm( intersection*0.0013,0.4,2.96) );
-            float land2 = max(0.1, fbm( intersection*0.0063,0.4,2.96) );
-            float iceFactor = abs(pow(intersection.z/EARTH_RADIUS,13.0))*e;
-
-            vec3 landColor1 = vec3(0.43,0.65,0.1) * land1;
-            vec3 landColor2 = RING_COLOR_1 * land2;
-            vec3 mixedLand = (landColor1 + landColor2)* 0.5;
-            vec3 finalLand = mix(mixedLand, vec3(7.0, 7.0, 7.0) * land1 * 1.5, max(iceFactor+.02*land2-.02, 0.));
-
-            col = (diffuse(n,SUN_DIRECTION)*sunColor+upColor)*finalLand*.75;
-#ifdef HIGH_QUALITY
-            col *= (.5+.5*fbm( intersection*0.23,0.4,2.96) );
-#endif
-        }
-    }
-    
-    if( mixDetailColor > 0. ) {
-        col = mix( col, detailCol, mixDetailColor );
-    }
-        
-#ifdef DISPLAY_LLAMEL
-    if(renderTerrainDetail ) {
-        vec3 rom = terrainTransformRo(ro),
-        rdm = terrainTransform(rd);
-        d = iSphere( rom, rdm, vec4( llamelPosition(), llamelScale*3. ) );
-        if( d > 0. ) {
-            vec4 llamel = renderLlamel( rom+rdm*d, rdm, sunColor, upColor, reflColor );
-            col = mix(col, llamel.rgb, llamel.a);
-        }
-    }
-#endif
-    
-    d = iSphere( ro, rd, vec4( 0., 0., 0., EARTH_RADIUS+EARTH_CLOUDS ) );
-    if( d > 0. ) { 
-        float shadow;
-		vec4 clouds = renderClouds( ro, rd, d, n, e, sunColor, upColor, shadow);
-        col *= shadow; 
-        col = mix( col, clouds.rgb, clouds.w );
-    }
-    
-    float m = MAX;
-    col *= (1. - renderRingFarShadow( ro+rd*d, SUN_DIRECTION ) );
-
- 	return vec4( col, 1. ); 
-}
-
-//-----------------------------------------------------
-// Lens flare by musk
-//
-// https://www.shadertoy.com/view/4sX3Rs
-//-----------------------------------------------------
-
-vec3 lensFlare( const in vec2 uv, const in vec2 pos) {
-	vec2 main = uv-pos;
-	vec2 uvd = uv*(length(uv));
-	
-	float f0 = 1.5/(length(uv-pos)*16.0+1.0);
-	
-	float f1 = max(0.01-pow(length(uv+1.2*pos),1.9),.0)*7.0;
-
-	float f2 = max(1.0/(1.0+32.0*pow(length(uvd+0.8*pos),2.0)),.0)*00.25;
-	float f22 = max(1.0/(1.0+32.0*pow(length(uvd+0.85*pos),2.0)),.0)*00.23;
-	float f23 = max(1.0/(1.0+32.0*pow(length(uvd+0.9*pos),2.0)),.0)*00.21;
-	
-	vec2 uvx = mix(uv,uvd,-0.5);
-	
-	float f4 = max(0.01-pow(length(uvx+0.4*pos),2.4),.0)*6.0;
-	float f42 = max(0.01-pow(length(uvx+0.45*pos),2.4),.0)*5.0;
-	float f43 = max(0.01-pow(length(uvx+0.5*pos),2.4),.0)*3.0;
-	
-	vec3 c = vec3(.0);
-	
-	c.r+=f2+f4; c.g+=f22+f42; c.b+=f23+f43;
-	c = c*.5 - vec3(length(uvd)*.05);
-	c+=vec3(f0);
-	
-	return c;
-}
-
-//-----------------------------------------------------
-// cameraPath
-//-----------------------------------------------------
-
-vec3 pro, pta, pup;
-float dro, dta, dup;
-
-void camint( inout vec3 ret, const in float t, const in float duration, const in vec3 dest, inout vec3 prev, inout float prevt ) {
-    if( t >= prevt && t <= prevt+duration ) {
-    	ret = mix( prev, dest, smoothstep(prevt, prevt+duration, t) );
-    }
-    prev = dest;
-    prevt += duration;
-}
-
-void cameraPath( in float t, out vec3 ro, out vec3 ta, out vec3 up ) {
-#ifndef HIDE_TERRAIN
-    time = t = mod( t, 92. );
-#else
-    time = t = mod( t, 66. );
-#endif
-    dro = dta = dup = 0.;
-
-    pro = ro = vec3(900. ,7000. ,1500. );
-    pta = ta = vec3(    0. ,    0. ,   0. );
-    pup = up = vec3(    0. ,    0.4,   1. ); 
-   
-    camint( ro, t, 5., vec3(-4300. ,-1000. , 500. ), pro, dro );
-    camint( ta, t, 5., vec3(    0. ,    0. ,   0. ), pta, dta );
-    camint( up, t, 7., vec3(    0. ,    0.1,   1. ), pup, dup ); 
- 
-    camint( ro, t, 3., vec3(-1355. , 1795. , 1.2 ), pro, dro );
-    camint( ta, t, 1., vec3(    0. , 300. ,-600. ), pta, dta );
-    camint( up, t, 6., vec3(    0. ,  0.1,    1. ), pup, dup );
-
-    camint( ro, t, 10., vec3(-1355. , 1795. , 1.2 ), pro, dro );
-    camint( ta, t, 14., vec3(    0. , 100. ,   600. ), pta, dta );
-    camint( up, t, 13., vec3(    0. ,  0.3,    1. ), pup, dup );
-    
-    vec3 roe = seaUntransform( vec3( 0., EARTH_RADIUS+0.004, 0. ) );
-    vec3 upe = seaUntransform( vec3( 0., 1., 0. ) );
-    
-    camint( ro, t, 7.,roe, pro, dro );
-    camint( ta, t, 7., vec3( EARTH_RADIUS + 0., EARTH_RADIUS - 500., 500. ), pta, dta );
-    camint( up, t, 6., upe, pup, dup );
-        
-    camint( ro, t, 17.,roe, pro, dro );
-    camint( ta, t, 17., vec3( EARTH_RADIUS + 500., EARTH_RADIUS + 1300., -100. ), pta, dta );
-    camint( up, t, 18., vec3(.0,1.,1.), pup, dup );
-    
-    camint( ro, t, 11., vec3(  3102. ,  0. , 1450. ), pro, dro );
-    camint( ta, t, 4., vec3(    0. ,   -100. ,   0. ), pta, dta );
-    camint( up, t, 8., vec3(    0. ,    0.15,   1. ), pup, dup ); 
-#ifndef HIDE_TERRAIN    
-    roe = terrainUntransform( vec3( 0., EARTH_RADIUS+0.004, 0. ) );
-    upe = terrainUntransform( vec3( 0., 1., 0. ) );
-    
-    camint( ro, t, 7., roe, pro, dro );
-    camint( ta, t, 12., vec3( -EARTH_RADIUS, EARTH_RADIUS+200., 100.), pta, dta );
-    camint( up, t, 2., upe, pup, dup );
-        
-    roe = terrainUntransform( vec3( 0., EARTH_RADIUS+0.001, 0. ) );
-    camint( ro, t, 17.,roe, pro, dro );
-    camint( ta, t, 18., roe + vec3( 5000., EARTH_RADIUS-100., -2000.), pta, dta );
-    camint( up, t, 18., vec3(.0,1.,1.), pup, dup );
-        
-    roe = terrainUntransform( vec3( 0., EARTH_RADIUS+1.8, 0. ) );
-    camint( ro, t, 4.,roe, pro, dro );
-    camint( ta, t, 4.5, roe + vec3( EARTH_RADIUS, EARTH_RADIUS+2000., -30.), pta, dta );
-    camint( up, t, 4., vec3(.0,1.,1.), pup, dup );
-#endif    
-    camint( ro, t, 10., vec3(900. ,7000. , 1500. ), pro, dro );
-    camint( ta, t, 2., vec3(    0. ,    0. ,   0. ), pta, dta );
-    camint( up, t, 10., vec3(    0. ,    0.4,   1. ), pup, dup ); 
-    
-    up = normalize( up );
-}
-
-//-----------------------------------------------------
-// mainImage
-//-----------------------------------------------------
-
-void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
-    vec2 p = -1.0 + 2.0 * fragCoord.xy / iResolution.xy;
-    p.x *= iResolution.x / iResolution.y;
-
-    vec3 ro, ta, up;
-    cameraPath( time, ro, ta, up );
-
-    vec3 ww = normalize( ta - ro );
-    vec3 uu = normalize( cross(ww,up) );
-    vec3 vv = normalize( cross(uu,ww) );
-    vec3 rd = normalize( p.x*uu + p.y*vv + 2.2*ww );
-
-    float maxd = MAX;  
-    vec3 col = renderStars( rd ).xyz;
-
-    vec4 planet = renderPlanet( ro, rd, up, maxd );       
-    if( planet.w > 0. ) col.xyz = planet.xyz;
-
-    float atmosphered = maxd;
-    vec4 atmosphere = .85*renderAtmospheric( ro, rd, atmosphered );
-    col = col * (1.-atmosphere.w ) + atmosphere.xyz; 
-
-    vec4 ring = renderRing( ro, rd, maxd );
-    col = col * (1.-ring.w ) + ring.xyz;
-
-    // lens flare
-    vec3 lightPos = SUN_DIRECTION * 100000.0;
-    vec2 screenPos;
-    vec3 lightDir = normalize(lightPos - ro);
-    float dotNL = dot(ww, lightDir);
-    if (dotNL > 0.0) {
-        vec3 p3 = ro + lightDir * 100.0;
-        vec4 p4 = vec4(p3, 1.0);
-        // This is a hacky way to get screen pos without a projection matrix
-        // In a real shader we'd use the projection matrix
-        screenPos = vec2(dot(uu, lightDir), dot(vv, lightDir)) / dot(ww, lightDir) * 2.2;
-        col += lensFlare(p, screenPos);
-    }
-
-    // post processing
-    col = pow( clamp(col,0.0,1.0), vec3(0.4545) );
-    col *= vec3(1.,0.99,0.95);   
-    col = clamp(1.06*col-0.03, 0., 1.);      
-    fragColor = vec4( col ,1.0);
-}
-
-void mainVR( out vec4 fragColor, in vec2 fragCoord, in vec3 ro, in vec3 rd ) {
-    float maxd = MAX;  
-    time = iTime * .7;
-    
-    rd = rd.xzy;
-    ro = (ro.xzy * .1) + vec3(-1355. , 1795. , 1. );
-    
-    vec3 col = renderStars( rd ).xyz;
-
-    vec4 planet = renderPlanet( ro, rd, vec3(0,.1,1), maxd );       
-    if( planet.w > 0. ) col.xyz = planet.xyz;
-
-    float atmosphered = maxd;
-    vec4 atmosphere = .85*renderAtmospheric( ro, rd, atmosphered );
-    col = col * (1.-atmosphere.w ) + atmosphere.xyz; 
-
-    vec4 ring = renderRing( ro, rd, maxd );
-    col = col * (1.-ring.w ) + ring.xyz;
-    
-    // post processing
-    col = pow( clamp(col,0.0,1.0), vec3(0.4545) );
-    col *= vec3(1.,0.99,0.95);   
-    col = clamp(1.06*col-0.03, 0., 1.);      
-    fragColor = vec4( col ,1.0);
+  fragColor = vec4(color, 1.0);
 }
 
 void main() {
-    time = iTime;
-    mainImage(gl_FragColor, gl_FragCoord.xy);
+    mainImage(gl_FragColor, vUv * iResolution.xy);
 }
 `;
