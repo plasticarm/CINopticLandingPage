@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { ShaderConfig } from '../types';
-import { Settings2, Play, Pause, RotateCcw, Code, Check, Info, ExternalLink } from 'lucide-react';
+import { Settings2, Play, Pause, RotateCcw, Code, Check, Info, ExternalLink, Download, Upload } from 'lucide-react';
 import { shaderRegistry, allShaders } from '../shaderRegistry';
 
 interface ControlsProps {
   configs: ShaderConfig[];
+  setConfigs: React.Dispatch<React.SetStateAction<ShaderConfig[]>>;
   onUpdate: (id: string, updates: Partial<ShaderConfig>) => void;
   introText: string;
   onUpdateIntroText: (text: string) => void;
 }
 
-export default function Controls({ configs, onUpdate, introText, onUpdateIntroText }: ControlsProps) {
+export default function Controls({ configs, setConfigs, onUpdate, introText, onUpdateIntroText }: ControlsProps) {
   const [copied, setCopied] = React.useState(false);
   const [showEmbedInfo, setShowEmbedInfo] = React.useState(false);
   const [customEmbedUrl, setCustomEmbedUrl] = React.useState('');
@@ -33,6 +34,8 @@ export default function Controls({ configs, onUpdate, introText, onUpdateIntroTe
         stickyRange: c.stickyRange,
         scrollRange: c.scrollRange,
         text: c.text,
+        imageUrl: c.imageUrl,
+        imageLink: c.imageLink,
         animationMode: c.animationMode
       }));
       url.searchParams.set('config', JSON.stringify(serializedConfigs));
@@ -45,7 +48,7 @@ export default function Controls({ configs, onUpdate, introText, onUpdateIntroTe
 
   const copyEmbedCode = () => {
     const embedUrl = getEmbedUrl();
-    const embedCode = `<iframe src="${embedUrl}" width="100%" height="600px" frameborder="0" allowfullscreen></iframe>`;
+    const embedCode = `<iframe src="${embedUrl}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
     
     const onSuccess = () => {
       setCopied(true);
@@ -79,6 +82,40 @@ export default function Controls({ configs, onUpdate, introText, onUpdateIntroTe
       console.error('Fallback copy failed', err);
     }
     document.body.removeChild(textArea);
+  };
+
+  const handleExport = () => {
+    const data = {
+      introText,
+      configs
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cinoptic-settings.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (json.introText !== undefined) onUpdateIntroText(json.introText);
+        if (Array.isArray(json.configs)) {
+          setConfigs(json.configs);
+        }
+      } catch (err) {
+        console.error('Failed to import settings', err);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -299,9 +336,61 @@ export default function Controls({ configs, onUpdate, introText, onUpdateIntroTe
                 placeholder="Enter text for this section..."
               />
             </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>IMAGE URL</label>
+              </div>
+              <input
+                type="text"
+                value={config.imageUrl || ''}
+                onChange={(e) => onUpdate(config.id, { imageUrl: e.target.value })}
+                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                placeholder="https://example.com/image.png"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                <label>IMAGE LINK</label>
+              </div>
+              <input
+                type="text"
+                value={config.imageLink || ''}
+                onChange={(e) => onUpdate(config.id, { imageLink: e.target.value })}
+                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                placeholder="https://example.com"
+              />
+            </div>
           </div>
         </div>
       )})}
+
+      <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
+          >
+            <Download size={14} />
+            EXPORT
+          </button>
+          <button
+            onClick={() => document.getElementById('import-input')?.click()}
+            className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
+          >
+            <Upload size={14} />
+            IMPORT
+          </button>
+        </div>
+        <input
+          id="import-input"
+          type="file"
+          accept=".json"
+          onChange={handleImport}
+          className="hidden"
+        />
+      </div>
 
       <div className="mt-6 pt-4 border-t border-white/10 text-[9px] text-white/30 text-center uppercase tracking-widest">
         Scroll to animate • Drag sliders to adjust

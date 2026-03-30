@@ -11,13 +11,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
-    base: '/',
     build: {
       outDir: 'dist',
       emptyOutDir: true,
-      sourcemap: false,
-    },
-    define: {
     },
     resolve: {
       alias: {

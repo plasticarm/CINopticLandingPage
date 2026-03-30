@@ -77,6 +77,8 @@ const INITIAL_CONFIGS: ShaderConfig[] = [
     scrollRange: 0.046,
     shaderId: 'final-0',
     text: 'We make the invisible, immersive. Welcome to CINoptic.',
+    imageUrl: 'https://raw.githubusercontent.com/plasticarm/CINopticLandingPage/main/images/Cinoptic_logo1.png',
+    imageLink: 'https://sites.google.com/view/perceptionxr/init',
   },
 ];
 
@@ -117,7 +119,15 @@ export default function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
-      {!hideUI && <Controls configs={configs} onUpdate={handleUpdate} introText={introText} onUpdateIntroText={setIntroText} />}
+      {!hideUI && (
+        <Controls 
+          configs={configs} 
+          setConfigs={setConfigs}
+          onUpdate={handleUpdate} 
+          introText={introText} 
+          onUpdateIntroText={setIntroText} 
+        />
+      )}
       <Canvas camera={{ position: [0, 0, 5] }}>
         <ScrollControls pages={pages} damping={0.2}>
           {configs.map((config, index) => {
@@ -161,11 +171,13 @@ export default function App() {
                   top: `${(config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100 + 50}vh`, 
                   left: '0', 
                   width: '100vw', 
-                  textAlign: 'center', 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   color: 'white', 
-                  fontSize: '1.5rem', 
                   fontFamily: 'var(--font-julius)', 
-                  pointerEvents: 'none', 
+                  pointerEvents: 'auto', 
                   textTransform: 'uppercase', 
                   letterSpacing: '0.2em', 
                   textShadow: '0 2px 10px rgba(0,0,0,0.5)',
@@ -173,7 +185,31 @@ export default function App() {
                   transform: 'translateY(-50%)'
                 }}
               >
-                {config.text}
+                <div style={{ fontSize: '1.5rem', textAlign: 'center', pointerEvents: 'none' }}>
+                  {config.text}
+                </div>
+                {config.imageUrl && (
+                  <a 
+                    href={config.imageLink || '#'} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ 
+                      marginTop: '2rem', 
+                      pointerEvents: 'auto',
+                      display: 'block',
+                      transition: 'transform 0.3s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <img 
+                      src={config.imageUrl} 
+                      alt="Section logo" 
+                      style={{ maxWidth: '200px', height: 'auto' }}
+                      referrerPolicy="no-referrer"
+                    />
+                  </a>
+                )}
               </div>
             ))}
           </Scroll>

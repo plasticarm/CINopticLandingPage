@@ -8,6 +8,8 @@ export interface ShaderConfig {
   scrollRange: number;
   shaderId?: string;
   text?: string;
+  imageUrl?: string;
+  imageLink?: string;
   animationMode?: 'always' | 'scroll';
 }
 

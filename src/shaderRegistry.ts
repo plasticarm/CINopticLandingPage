@@ -7,6 +7,11 @@ import { fragmentShader as luminescenceCode } from './components/LuminescenceSha
 import { fragmentShader as fractalCode } from './components/FractalShaderCode';
 import { crossingStormsCode } from './components/CrossingStormsShaderCode';
 import { coldStrandsCode } from './components/ColdStrandsShaderCode';
+import { etherealCode } from './components/EtherealShaderCode';
+import { cosmicEnergyCode } from './components/CosmicEnergyShaderCode';
+import { synapsesCode } from './components/SynapsesShaderCode';
+import { gemmariumCode } from './components/GemmariumShaderCode';
+import { blueMarbleCode } from './components/BlueMarbleShaderCode';
 
 export const blackShader = `
 void main() {
@@ -19,6 +24,8 @@ export const shaderRegistry: Record<string, { name: string; code: string }[]> = 
     { name: 'Cosmos 1', code: cosmosCode },
     { name: 'Cosmos 2', code: cosmosCode2 },
     { name: 'Cosmos 3', code: cosmosCode3 },
+    { name: 'Cosmic Energy', code: cosmicEnergyCode },
+    { name: 'Blue Marble', code: blueMarbleCode },
   ],
   planet: [
     { name: 'Planet 1', code: planetCode },
@@ -29,12 +36,15 @@ export const shaderRegistry: Record<string, { name: string; code: string }[]> = 
   luminescence: [
     { name: 'Luminescence 1', code: luminescenceCode },
     { name: 'Cold Strands', code: coldStrandsCode },
+    { name: 'Gemmarium', code: gemmariumCode },
   ],
   microscopic: [
     { name: 'Microscopic 1', code: fractalCode },
+    { name: 'Synapses', code: synapsesCode },
   ],
   final: [
     { name: 'Crossing Storms', code: crossingStormsCode },
+    { name: 'Ethereal', code: etherealCode },
     { name: 'Black', code: blackShader },
   ]
 };
