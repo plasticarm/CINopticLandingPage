@@ -41,10 +41,10 @@ const float pi = 3.141592653589793238;
 const float twopi = 6.283185307179586;
 
 
-vec3 accentColor1 = vec3(1., .1, .5);
+vec3 accentColor1 = vec3(0.5, .5, 1.0);
 vec3 secondColor1 = vec3(.1, .5, 1.);
 
-vec3 accentColor2 = vec3(1., .5, .1);
+vec3 accentColor2 = vec3(0.5, .5, 1.0);
 vec3 secondColor2 = vec3(.1, .5, .6);
 
 vec3 bg;	 	// global background color
