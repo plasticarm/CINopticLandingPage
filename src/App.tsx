@@ -45,8 +45,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
     const distance = Math.abs(scrollOffset - baseTop);
     const fadeRange = 45; // vh range for full fade
     
-    const primaryOpacity = fadePrimary ? Math.max(0, 1 - (distance / fadeRange)) : 1;
-    const secondaryOpacity = fadeSecondary ? Math.max(0, 1 - (distance / fadeRange)) : 1;
+    const primaryOpacity = fadePrimary ? Math.max(0, 1 - Math.pow(distance / fadeRange, 2)) : 1;
+    const secondaryOpacity = fadeSecondary ? Math.max(0, 1 - Math.pow(distance / fadeRange, 2)) : 1;
     
     if (ref.current) {
       // Vertical parallax offset
@@ -136,7 +136,11 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             aspectRatio: config.projectMediaCircleMask ? '1 / 1' : 'auto',
             overflow: 'hidden',
             boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(255,255,255,0.0)'
+            border: '1px solid rgba(255,255,255,0.0)',
+            transform: 'translateZ(0)',
+            WebkitTransform: 'translateZ(0)',
+            clipPath: config.projectMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
+            WebkitClipPath: config.projectMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
           }}
           onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
           onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -152,6 +156,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 border: 'none', 
                 display: 'block', 
                 pointerEvents: 'none', // Prevents interaction with the iframe, allowing the parent <a> tag to handle clicks
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
                 ...(config.projectMediaCircleMask ? {
                   WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
                   maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
@@ -173,6 +179,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 aspectRatio: config.projectMediaCircleMask ? '1 / 1' : 'auto',
                 objectFit: config.projectMediaCircleMask ? 'cover' : 'fill',
                 display: 'block',
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
                 ...(config.projectMediaCircleMask ? {
                   WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
                   maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
@@ -189,6 +197,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 aspectRatio: config.projectMediaCircleMask ? '1 / 1' : 'auto',
                 objectFit: config.projectMediaCircleMask ? 'cover' : 'fill',
                 display: 'block',
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
                 ...(config.projectMediaCircleMask ? {
                   WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
                   maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
@@ -245,6 +255,10 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 border: 'none', 
                 display: 'block', 
                 pointerEvents: 'none',
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
+                clipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
+                WebkitClipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
                 ...(config.projectSecondaryMediaCircleMask ? {
                   WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
                   maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
@@ -267,6 +281,10 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
                 borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
                 display: 'block',
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
+                clipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
+                WebkitClipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
                 ...(config.projectSecondaryMediaCircleMask ? {
                   WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
                   maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
@@ -284,6 +302,10 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
                 borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
                 display: 'block',
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
+                clipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
+                WebkitClipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
                 ...(config.projectSecondaryMediaCircleMask ? {
                   WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
                   maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
