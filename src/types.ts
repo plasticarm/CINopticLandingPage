@@ -25,6 +25,7 @@ export interface ShaderConfig {
   projectSize?: number; // Width in vw
   projectVisible?: boolean;
   projectFade?: boolean;
+  projectMediaCircleMask?: boolean;
   // Secondary Graphic properties
   projectSecondaryMediaUrl?: string;
   projectSecondaryParallaxSpeed?: number;
@@ -32,6 +33,7 @@ export interface ShaderConfig {
   projectSecondaryVerticalPosition?: number;
   projectSecondarySize?: number;
   projectSecondaryFade?: boolean;
+  projectSecondaryMediaCircleMask?: boolean;
 }
 
 export interface AppConfig {

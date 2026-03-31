@@ -132,7 +132,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             pointerEvents: 'auto',
             display: 'block',
             transition: 'transform 0.3s ease',
-            borderRadius: '8px',
+            borderRadius: config.projectMediaCircleMask ? '50%' : '8px',
+            aspectRatio: config.projectMediaCircleMask ? '1 / 1' : 'auto',
             overflow: 'hidden',
             boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
             border: '1px solid rgba(255,255,255,0.0)'
@@ -145,10 +146,16 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
               src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeId}&modestbranding=1&rel=0&playsinline=1&disablekb=1`}
               style={{ 
                 width: '100%', 
-                aspectRatio: '16/9', 
+                height: config.projectMediaCircleMask ? '100%' : 'auto',
+                aspectRatio: config.projectMediaCircleMask ? '1 / 1' : '16/9', 
+                objectFit: config.projectMediaCircleMask ? 'cover' : 'fill',
                 border: 'none', 
                 display: 'block', 
-                pointerEvents: 'none' // Prevents interaction with the iframe, allowing the parent <a> tag to handle clicks
+                pointerEvents: 'none', // Prevents interaction with the iframe, allowing the parent <a> tag to handle clicks
+                ...(config.projectMediaCircleMask ? {
+                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
+                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+                } : {})
               }}
               allow="autoplay; encrypted-media"
               title="Project Video"
@@ -160,13 +167,33 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
               muted 
               loop 
               playsInline
-              style={{ width: '100%', height: 'auto', display: 'block' }}
+              style={{ 
+                width: '100%', 
+                height: config.projectMediaCircleMask ? '100%' : 'auto', 
+                aspectRatio: config.projectMediaCircleMask ? '1 / 1' : 'auto',
+                objectFit: config.projectMediaCircleMask ? 'cover' : 'fill',
+                display: 'block',
+                ...(config.projectMediaCircleMask ? {
+                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
+                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+                } : {})
+              }}
             />
           ) : (
             <img 
               src={mediaUrl} 
               alt="Project media" 
-              style={{ width: '100%', height: 'auto', display: 'block' }}
+              style={{ 
+                width: '100%', 
+                height: config.projectMediaCircleMask ? '100%' : 'auto', 
+                aspectRatio: config.projectMediaCircleMask ? '1 / 1' : 'auto',
+                objectFit: config.projectMediaCircleMask ? 'cover' : 'fill',
+                display: 'block',
+                ...(config.projectMediaCircleMask ? {
+                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
+                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+                } : {})
+              }}
               referrerPolicy="no-referrer"
             />
           )}
@@ -211,10 +238,17 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
               src={`https://www.youtube.com/embed/${secondaryYoutubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${secondaryYoutubeId}&modestbranding=1&rel=0&playsinline=1&disablekb=1`}
               style={{ 
                 width: '100%', 
-                aspectRatio: '16/9', 
+                height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto',
+                aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : '16/9', 
+                objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
+                borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
                 border: 'none', 
                 display: 'block', 
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                ...(config.projectSecondaryMediaCircleMask ? {
+                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
+                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+                } : {})
               }}
               allow="autoplay; encrypted-media"
               title="Secondary Project Video"
@@ -226,13 +260,35 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
               muted 
               loop 
               playsInline
-              style={{ width: '100%', height: 'auto', display: 'block' }}
+              style={{ 
+                width: '100%', 
+                height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto', 
+                aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : 'auto',
+                objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
+                borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
+                display: 'block',
+                ...(config.projectSecondaryMediaCircleMask ? {
+                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
+                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+                } : {})
+              }}
             />
           ) : (
             <img 
               src={secondaryMediaUrl} 
               alt="Secondary Project media" 
-              style={{ width: '100%', height: 'auto', display: 'block' }}
+              style={{ 
+                width: '100%', 
+                height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto', 
+                aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : 'auto',
+                objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
+                borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
+                display: 'block',
+                ...(config.projectSecondaryMediaCircleMask ? {
+                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
+                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+                } : {})
+              }}
               referrerPolicy="no-referrer"
             />
           )}
@@ -465,7 +521,8 @@ export default function App() {
                 letterSpacing: '0.2em', 
                 textShadow: '0 2px 10px rgba(0,0,0,0.5)',
                 whiteSpace: 'pre-wrap',
-                transform: 'translateY(-50%)'
+                transform: 'translateY(-50%)',
+                zIndex: 20
               }}
             >
               {introText}
@@ -489,7 +546,8 @@ export default function App() {
                     letterSpacing: '0.2em', 
                     textShadow: '0 2px 10px rgba(0,0,0,0.5)',
                     whiteSpace: 'pre-wrap',
-                    transform: 'translateY(-50%)'
+                    transform: 'translateY(-50%)',
+                    zIndex: 20
                   }}
                 >
                   <div style={{ fontSize: '1.5rem', textAlign: 'center', pointerEvents: 'none' }}>

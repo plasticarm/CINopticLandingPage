@@ -485,9 +485,18 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
                   type="text"
                   value={config.projectMediaUrl || ''}
                   onChange={(e) => onUpdate(config.id, { projectMediaUrl: e.target.value })}
-                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50 mb-2"
                   placeholder="https://example.com/media.mp4"
                 />
+                <div className="flex items-center justify-between mt-2">
+                  <label className="text-[10px] text-white/60 uppercase tracking-widest">CIRCLE MASK (1:1)</label>
+                  <button 
+                    onClick={() => onUpdate(config.id, { projectMediaCircleMask: !config.projectMediaCircleMask })}
+                    className={`w-8 h-4 rounded-full transition-colors relative ${config.projectMediaCircleMask ? 'bg-blue-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${config.projectMediaCircleMask ? 'left-4.5' : 'left-0.5'}`} />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -606,9 +615,18 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
                     type="text"
                     value={config.projectSecondaryMediaUrl || ''}
                     onChange={(e) => onUpdate(config.id, { projectSecondaryMediaUrl: e.target.value })}
-                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50 mb-2"
                     placeholder="https://example.com/logo.png"
                   />
+                  <div className="flex items-center justify-between mt-2">
+                    <label className="text-[10px] text-white/60 uppercase tracking-widest">CIRCLE MASK (1:1)</label>
+                    <button 
+                      onClick={() => onUpdate(config.id, { projectSecondaryMediaCircleMask: !config.projectSecondaryMediaCircleMask })}
+                      className={`w-8 h-4 rounded-full transition-colors relative ${config.projectSecondaryMediaCircleMask ? 'bg-blue-600' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${config.projectSecondaryMediaCircleMask ? 'left-4.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
