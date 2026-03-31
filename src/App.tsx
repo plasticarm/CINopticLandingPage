@@ -151,8 +151,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             transform: 'translateZ(0)',
             WebkitTransform: 'translateZ(0)',
             ...(config.projectMediaCircleMask ? {
-              WebkitMaskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
-              maskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
+              WebkitMaskImage: `url('https://raw.githubusercontent.com/plasticarm/CINopticLandingPage/main/images/SVG_Circle.svg')`,
+              maskImage: `url('https://raw.githubusercontent.com/plasticarm/CINopticLandingPage/main/images/SVG_Circle.svg')`,
               WebkitMaskSize: '100% 100%',
               maskSize: '100% 100%',
               WebkitMaskRepeat: 'no-repeat',
@@ -258,8 +258,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             transform: 'translateZ(0)',
             WebkitTransform: 'translateZ(0)',
             ...(config.projectSecondaryMediaCircleMask ? {
-              WebkitMaskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
-              maskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
+              WebkitMaskImage: `url('https://raw.githubusercontent.com/plasticarm/CINopticLandingPage/main/images/SVG_Circle.svg')`,
+              maskImage: `url('https://raw.githubusercontent.com/plasticarm/CINopticLandingPage/main/images/SVG_Circle.svg')`,
               WebkitMaskSize: '100% 100%',
               maskSize: '100% 100%',
               WebkitMaskRepeat: 'no-repeat',
