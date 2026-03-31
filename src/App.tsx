@@ -139,6 +139,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
           rel="noopener noreferrer"
           style={{ 
             width: '100%',
+            position: 'relative',
             pointerEvents: 'auto',
             display: 'block',
             transition: 'transform 0.3s ease',
@@ -150,8 +151,14 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             transform: 'translateZ(0)',
             WebkitTransform: 'translateZ(0)',
             ...(config.projectMediaCircleMask ? {
-              WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
-              maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+              WebkitMaskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
+              maskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
+              WebkitMaskSize: '100% 100%',
+              maskSize: '100% 100%',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskPosition: 'center',
             } : {})
           }}
           onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
@@ -243,64 +250,75 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             transition: 'opacity 0.1s ease-out',
           }}
         >
-          {secondaryYoutubeId ? (
-            <iframe
-              src={`https://www.youtube.com/embed/${secondaryYoutubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${secondaryYoutubeId}&modestbranding=1&rel=0&playsinline=1&disablekb=1`}
-              style={{ 
-                width: '100%', 
-                height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto',
-                aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : '16/9', 
-                objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
-                borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
-                border: 'none', 
-                display: 'block', 
-                pointerEvents: 'none',
-                transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)',
-                overflow: 'hidden',
-                ...(config.projectSecondaryMediaCircleMask ? {
-                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
-                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
-                } : {})
-              }}
-              allow="autoplay; encrypted-media"
-              title="Secondary Project Video"
-            />
-          ) : isSecondaryVideo ? (
-            <video 
-              src={secondaryMediaUrl} 
-              autoPlay 
-              muted 
-              loop 
-              playsInline
-              style={{ 
-                width: '100%', 
-                height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto', 
-                aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : 'auto',
-                objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
-                borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
-                display: 'block',
-                transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)'
-              }}
-            />
-          ) : (
-            <img 
-              src={secondaryMediaUrl} 
-              alt="Secondary Project media" 
-              style={{ 
-                width: '100%', 
-                height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto', 
-                aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : 'auto',
-                objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
-                borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
-                display: 'block',
-                transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)'
-              }}
-              referrerPolicy="no-referrer"
-            />
-          )}
+          <div style={{
+            width: '100%',
+            position: 'relative',
+            borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
+            overflow: 'hidden',
+            transform: 'translateZ(0)',
+            WebkitTransform: 'translateZ(0)',
+            ...(config.projectSecondaryMediaCircleMask ? {
+              WebkitMaskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
+              maskImage: 'radial-gradient(circle closest-side, rgba(0,0,0,1) calc(100% - 2px), rgba(0,0,0,0) 100%)',
+              WebkitMaskSize: '100% 100%',
+              maskSize: '100% 100%',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskPosition: 'center',
+            } : {})
+          }}>
+            {secondaryYoutubeId ? (
+              <iframe
+                src={`https://www.youtube.com/embed/${secondaryYoutubeId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${secondaryYoutubeId}&modestbranding=1&rel=0&playsinline=1&disablekb=1`}
+                style={{ 
+                  width: '100%', 
+                  height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto',
+                  aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : '16/9', 
+                  objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
+                  border: 'none', 
+                  display: 'block', 
+                  pointerEvents: 'none',
+                  transform: 'translateZ(0)',
+                  WebkitTransform: 'translateZ(0)'
+                }}
+                allow="autoplay; encrypted-media"
+                title="Secondary Project Video"
+              />
+            ) : isSecondaryVideo ? (
+              <video 
+                src={secondaryMediaUrl} 
+                autoPlay 
+                muted 
+                loop 
+                playsInline
+                style={{ 
+                  width: '100%', 
+                  height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto', 
+                  aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : 'auto',
+                  objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
+                  display: 'block',
+                  transform: 'translateZ(0)',
+                  WebkitTransform: 'translateZ(0)'
+                }}
+              />
+            ) : (
+              <img 
+                src={secondaryMediaUrl} 
+                alt="Secondary Project media" 
+                style={{ 
+                  width: '100%', 
+                  height: config.projectSecondaryMediaCircleMask ? '100%' : 'auto', 
+                  aspectRatio: config.projectSecondaryMediaCircleMask ? '1 / 1' : 'auto',
+                  objectFit: config.projectSecondaryMediaCircleMask ? 'cover' : 'fill',
+                  display: 'block',
+                  transform: 'translateZ(0)',
+                  WebkitTransform: 'translateZ(0)'
+                }}
+                referrerPolicy="no-referrer"
+              />
+            )}
+          </div>
         </div>
       )}
     </>
