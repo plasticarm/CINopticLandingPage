@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useScroll } from '@react-three/drei';
 import * as THREE from 'three';
@@ -24,9 +24,55 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
     uTime: { value: 0 },
     uResolution: { value: new THREE.Vector2(size.width, size.height) },
     uMouse: { value: new THREE.Vector2(0, 0) },
+    iChannel0: { value: null as THREE.Texture | null },
   }).current;
 
   const timeRef = useRef(0);
+  const [textures, setTextures] = useState<THREE.Texture[]>([]);
+
+  useEffect(() => {
+    if (config.shaderId?.startsWith('image_sequence') && config.imageSequenceUrl && config.imageSequenceFrameCount) {
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+      
+      const frameCount = config.imageSequenceFrameCount;
+      const loadedTextures: (THREE.Texture | null)[] = new Array(frameCount).fill(null);
+      setTextures(loadedTextures as any);
+      
+      for (let i = 0; i < frameCount; i++) {
+        let url = config.imageSequenceUrl;
+        
+        // Support {index} or {index0} with optional padding like {index:4} or {index0:4}
+        if (url.includes('{index')) {
+          url = url.replace(/\{index(0)?(?::(\d+))?\}/g, (match, isZeroBased, padding) => {
+            const num = isZeroBased ? i : i + 1;
+            const numStr = num.toString();
+            if (padding) {
+              return numStr.padStart(parseInt(padding, 10), '0');
+            }
+            return numStr;
+          });
+        } else {
+          // Fallback: assume it's a directory and append index.webp (1-based)
+          url = `${url.replace(/\/$/, '')}/${i + 1}.webp`;
+        }
+        
+        loader.load(url, (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          setTextures(prev => {
+            const next = [...prev];
+            next[i] = tex as any;
+            return next;
+          });
+        }, undefined, (err) => {
+          console.error(`Failed to load texture: ${url}`, err);
+        });
+      }
+    } else {
+      setTextures([]);
+      uniforms.iChannel0.value = null;
+    }
+  }, [config.shaderId, config.imageSequenceUrl, config.imageSequenceFrameCount]);
 
   useFrame((state, delta) => {
     if (!scroll || !mesh.current) return;
@@ -72,6 +118,37 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
     uniforms.iTime.value = currentTime;
     uniforms.uTime.value = currentTime;
     
+    if (textures.length > 0) {
+      let progress = 0;
+      
+      if (animationMode === 'always') {
+        // Play automatically based on time. 
+        // currentTime increases by delta * s * 10.0
+        // We want s=1 to be roughly 30 fps.
+        progress = ((currentTime * 3.0) % textures.length) / textures.length;
+      } else if (isLast) {
+        // Indefinite scroll
+        progress = (currentTime * 0.1) % 1.0;
+        if (progress < 0) progress += 1.0;
+      } else {
+        // Scroll bound
+        progress = localProgress * s;
+        if (s !== 1.0) {
+          progress = progress % 1.0;
+          if (progress < 0) progress += 1.0;
+        }
+      }
+
+      const frameIndex = Math.min(
+        textures.length - 1,
+        Math.max(0, Math.floor(progress * textures.length))
+      );
+      const tex = textures[frameIndex];
+      if (tex) {
+        uniforms.iChannel0.value = tex;
+      }
+    }
+    
     uniforms.iResolution.value.set(size.width, size.height);
     uniforms.uResolution.value.set(size.width, size.height);
 
@@ -104,6 +181,7 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
     <mesh ref={mesh}>
       <planeGeometry args={[viewport.width, viewport.height]} />
       <shaderMaterial
+        transparent={true}
         uniforms={uniforms}
         vertexShader={`
           varying vec2 vUv;

@@ -9,18 +9,26 @@ interface ControlsProps {
   onUpdate: (id: string, updates: Partial<ShaderConfig>) => void;
   introText: string;
   onUpdateIntroText: (text: string) => void;
+  globalTextBackground: boolean;
+  onUpdateGlobalTextBackground: (value: boolean) => void;
 }
 
-export default function Controls({ configs, setConfigs, onUpdate, introText, onUpdateIntroText }: ControlsProps) {
+export default function Controls({ configs, setConfigs, onUpdate, introText, onUpdateIntroText, globalTextBackground, onUpdateGlobalTextBackground }: ControlsProps) {
   const [copied, setCopied] = React.useState(false);
   const [showEmbedInfo, setShowEmbedInfo] = React.useState(false);
   const [customEmbedUrl, setCustomEmbedUrl] = React.useState('');
+  const [activeTabs, setActiveTabs] = React.useState<Record<string, 'shader' | 'project'>>({});
+
+  const toggleTab = (id: string, tab: 'shader' | 'project') => {
+    setActiveTabs(prev => ({ ...prev, [id]: tab }));
+  };
 
   const getEmbedUrl = () => {
     const baseUrl = customEmbedUrl || `${window.location.origin}${window.location.pathname}`;
     const url = new URL(baseUrl);
     url.searchParams.set('hideUI', 'true');
     url.searchParams.set('introText', introText);
+    url.searchParams.set('globalTextBackground', globalTextBackground.toString());
     
     // Serialize configs to URL parameter
     try {
@@ -36,7 +44,28 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
         text: c.text,
         imageUrl: c.imageUrl,
         imageLink: c.imageLink,
-        animationMode: c.animationMode
+        animationMode: c.animationMode,
+        imageSequenceUrl: c.imageSequenceUrl,
+        imageSequenceFrameCount: c.imageSequenceFrameCount,
+        // Project properties
+        projectMediaUrl: c.projectMediaUrl,
+        projectText: c.projectText,
+        projectLinkUrl: c.projectLinkUrl,
+        projectParallaxSpeed: c.projectParallaxSpeed,
+        projectAlignment: c.projectAlignment,
+        projectDistance: c.projectDistance,
+        projectHorizontalPosition: c.projectHorizontalPosition,
+        projectVerticalPosition: c.projectVerticalPosition,
+        projectSize: c.projectSize,
+        projectVisible: c.projectVisible,
+        projectFade: c.projectFade,
+        // Secondary Graphic properties
+        projectSecondaryMediaUrl: c.projectSecondaryMediaUrl,
+        projectSecondaryParallaxSpeed: c.projectSecondaryParallaxSpeed,
+        projectSecondaryHorizontalPosition: c.projectSecondaryHorizontalPosition,
+        projectSecondaryVerticalPosition: c.projectSecondaryVerticalPosition,
+        projectSecondarySize: c.projectSecondarySize,
+        projectSecondaryFade: c.projectSecondaryFade
       }));
       url.searchParams.set('config', JSON.stringify(serializedConfigs));
     } catch (e) {
@@ -87,6 +116,7 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
   const handleExport = () => {
     const data = {
       introText,
+      globalTextBackground,
       configs
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -107,6 +137,7 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
       try {
         const json = JSON.parse(event.target?.result as string);
         if (json.introText !== undefined) onUpdateIntroText(json.introText);
+        if (json.globalTextBackground !== undefined) onUpdateGlobalTextBackground(json.globalTextBackground);
         if (Array.isArray(json.configs)) {
           setConfigs(json.configs);
         }
@@ -183,7 +214,7 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs text-white/40">00.</span>
-          <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">Intro</h3>
+          <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">Global Settings</h3>
         </div>
         <div className="space-y-4">
           <div>
@@ -197,172 +228,455 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
               placeholder="Enter intro text..."
             />
           </div>
+          
+          <div className="flex items-center justify-between bg-black/40 border border-white/10 rounded px-2 py-2">
+            <span className="text-[10px] text-white/60">PROJECT TEXT BACKGROUND</span>
+            <button
+              onClick={() => onUpdateGlobalTextBackground(!globalTextBackground)}
+              className={`w-8 h-4 rounded-full transition-colors relative ${globalTextBackground ? 'bg-blue-600' : 'bg-white/20'}`}
+            >
+              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${globalTextBackground ? 'left-4.5' : 'left-0.5'}`} />
+            </button>
+          </div>
         </div>
       </div>
 
       {configs.map((config, index) => {
+        const activeTab = activeTabs[config.id] || 'shader';
+        
         return (
-        <div key={config.id} className="mb-8 last:mb-0">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs text-white/40">0{index + 1}.</span>
-            <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">{config.name}</h3>
+        <div key={config.id} className="mb-8 pb-8 border-b border-white/10 last:border-0 last:mb-0 last:pb-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">0{index + 1}.</span>
+              <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">{config.name}</h3>
+            </div>
+            <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
+              <button 
+                onClick={() => toggleTab(config.id, 'shader')}
+                className={`px-2 py-1 text-[9px] rounded-md transition-all ${activeTab === 'shader' ? 'bg-blue-600 text-white font-bold' : 'text-white/40 hover:text-white/70'}`}
+              >
+                SHADER
+              </button>
+              <button 
+                onClick={() => toggleTab(config.id, 'project')}
+                className={`px-2 py-1 text-[9px] rounded-md transition-all ${activeTab === 'project' ? 'bg-blue-600 text-white font-bold' : 'text-white/40 hover:text-white/70'}`}
+              >
+                PROJECT
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>ANIMATION MODE</label>
+          {activeTab === 'shader' ? (
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>ANIMATION MODE</label>
+                </div>
+                <select
+                  value={config.animationMode || 'scroll'}
+                  onChange={(e) => onUpdate(config.id, { animationMode: e.target.value as 'always' | 'scroll' })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="scroll">Scroll To Animate</option>
+                  <option value="always">Always Animate</option>
+                </select>
               </div>
-              <select
-                value={config.animationMode || 'scroll'}
-                onChange={(e) => onUpdate(config.id, { animationMode: e.target.value as 'always' | 'scroll' })}
-                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
-              >
-                <option value="scroll">Scroll To Animate</option>
-                <option value="always">Always Animate</option>
-              </select>
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>SHADER VARIANT</label>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>SHADER VARIANT</label>
+                </div>
+                <select
+                  value={config.shaderId || allShaders[0].id}
+                  onChange={(e) => onUpdate(config.id, { shaderId: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                >
+                  {allShaders.map((shader) => (
+                    <option key={shader.id} value={shader.id}>{shader.name}</option>
+                  ))}
+                </select>
               </div>
-              <select
-                value={config.shaderId || allShaders[0].id}
-                onChange={(e) => onUpdate(config.id, { shaderId: e.target.value })}
-                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
-              >
-                {allShaders.map((shader) => (
-                  <option key={shader.id} value={shader.id}>{shader.name}</option>
-                ))}
-              </select>
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>START OFFSET (SCROLL %)</label>
-                <span>{(config.startOffset * 100).toFixed(0)}%</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="0.9"
-                step="0.01"
-                value={config.startOffset}
-                onChange={(e) => onUpdate(config.id, { startOffset: parseFloat(e.target.value) })}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
+              {config.shaderId?.startsWith('image_sequence') && (
+                <div className="space-y-4 pt-2 border-t border-white/10">
+                  <div>
+                    <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                      <label>IMAGE SEQUENCE URL TEMPLATE</label>
+                    </div>
+                    <input
+                      type="text"
+                      value={config.imageSequenceUrl || ''}
+                      onChange={(e) => onUpdate(config.id, { imageSequenceUrl: e.target.value })}
+                      className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                      placeholder="https://example.com/frames/{index}.webp"
+                    />
+                    <p className="text-[8px] text-white/40 mt-1">Use {'{index}'} for 1-based (1, 2, 3...) or {'{index0}'} for 0-based (0, 1, 2...). Add :N for padding, e.g. {'{index:4}'} for 0001.</p>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                      <label>FRAME COUNT</label>
+                      <span>{config.imageSequenceFrameCount || 100}</span>
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={config.imageSequenceFrameCount || 100}
+                      onChange={(e) => onUpdate(config.id, { imageSequenceFrameCount: parseInt(e.target.value) || 100 })}
+                      className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                    />
+                  </div>
+                </div>
+              )}
 
-            <div>
-              <div className="flex justify-between items-center text-[10px] mb-1 text-white/60">
-                <label>ANIMATION DURATION (s)</label>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>START OFFSET (SCROLL %)</label>
+                  <span>{(config.startOffset * 100).toFixed(0)}%</span>
+                </div>
                 <input
-                  type="number"
-                  min="1"
-                  max="100000"
-                  value={config.duration}
-                  onChange={(e) => onUpdate(config.id, { duration: parseFloat(e.target.value) || 0 })}
-                  className="w-20 bg-white/10 text-white text-right px-1 rounded border border-white/20 focus:outline-none focus:border-blue-500"
+                  type="range"
+                  min="0"
+                  max="0.9"
+                  step="0.01"
+                  value={config.startOffset}
+                  onChange={(e) => onUpdate(config.id, { startOffset: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                 />
               </div>
-              <input
-                type="range"
-                min="10"
-                max="100000"
-                step="10"
-                value={config.duration}
-                onChange={(e) => onUpdate(config.id, { duration: parseFloat(e.target.value) })}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>SPEED MULTIPLIER</label>
-                <span>{config.speed.toFixed(3)}x</span>
+              <div>
+                <div className="flex justify-between items-center text-[10px] mb-1 text-white/60">
+                  <label>ANIMATION DURATION (s)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100000"
+                    value={config.duration}
+                    onChange={(e) => onUpdate(config.id, { duration: parseFloat(e.target.value) || 0 })}
+                    className="w-20 bg-white/10 text-white text-right px-1 rounded border border-white/20 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="100000"
+                  step="10"
+                  value={config.duration}
+                  onChange={(e) => onUpdate(config.id, { duration: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
               </div>
-              <input
-                type="range"
-                min="0.001"
-                max="1"
-                step="0.001"
-                value={config.speed}
-                onChange={(e) => onUpdate(config.id, { speed: parseFloat(e.target.value) })}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>STICKY RANGE (SCROLL %)</label>
-                <span>{(config.stickyRange * 100).toFixed(0)}%</span>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>SPEED MULTIPLIER</label>
+                  <span>{config.speed.toFixed(3)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.001"
+                  max="1"
+                  step="0.001"
+                  value={config.speed}
+                  onChange={(e) => onUpdate(config.id, { speed: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
               </div>
-              <input
-                type="range"
-                min="0.05"
-                max="0.5"
-                step="0.01"
-                value={config.stickyRange}
-                onChange={(e) => onUpdate(config.id, { stickyRange: parseFloat(e.target.value) })}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>SCROLL OUT RANGE (SCROLL %)</label>
-                <span>{(config.scrollRange * 100).toFixed(0)}%</span>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>STICKY RANGE (SCROLL %)</label>
+                  <span>{(config.stickyRange * 100).toFixed(0)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="0.5"
+                  step="0.01"
+                  value={config.stickyRange}
+                  onChange={(e) => onUpdate(config.id, { stickyRange: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
               </div>
-              <input
-                type="range"
-                min="0.01"
-                max="0.2"
-                step="0.01"
-                value={config.scrollRange}
-                onChange={(e) => onUpdate(config.id, { scrollRange: parseFloat(e.target.value) })}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>SECTION TEXT</label>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>SCROLL OUT RANGE (SCROLL %)</label>
+                  <span>{(config.scrollRange * 100).toFixed(0)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="0.2"
+                  step="0.01"
+                  value={config.scrollRange}
+                  onChange={(e) => onUpdate(config.id, { scrollRange: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
               </div>
-              <textarea
-                value={config.text || ''}
-                onChange={(e) => onUpdate(config.id, { text: e.target.value })}
-                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white/80 text-xs focus:outline-none focus:border-blue-500/50 resize-y min-h-[60px]"
-                placeholder="Enter text for this section..."
-              />
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>IMAGE URL</label>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>SECTION TEXT</label>
+                </div>
+                <textarea
+                  value={config.text || ''}
+                  onChange={(e) => onUpdate(config.id, { text: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white/80 text-xs focus:outline-none focus:border-blue-500/50 resize-y min-h-[60px]"
+                  placeholder="Enter text for this section..."
+                />
               </div>
-              <input
-                type="text"
-                value={config.imageUrl || ''}
-                onChange={(e) => onUpdate(config.id, { imageUrl: e.target.value })}
-                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
-                placeholder="https://example.com/image.png"
-              />
-            </div>
 
-            <div>
-              <div className="flex justify-between text-[10px] mb-1 text-white/60">
-                <label>IMAGE LINK</label>
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>IMAGE URL</label>
+                </div>
+                <input
+                  type="text"
+                  value={config.imageUrl || ''}
+                  onChange={(e) => onUpdate(config.id, { imageUrl: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                  placeholder="https://example.com/image.png"
+                />
               </div>
-              <input
-                type="text"
-                value={config.imageLink || ''}
-                onChange={(e) => onUpdate(config.id, { imageLink: e.target.value })}
-                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
-                placeholder="https://example.com"
-              />
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>IMAGE LINK</label>
+                </div>
+                <input
+                  type="text"
+                  value={config.imageLink || ''}
+                  onChange={(e) => onUpdate(config.id, { imageLink: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                  placeholder="https://example.com"
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-white/60 uppercase tracking-widest">PROJECT VISIBLE</label>
+                <button 
+                  onClick={() => onUpdate(config.id, { projectVisible: !config.projectVisible })}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${config.projectVisible !== false ? 'bg-blue-600' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${config.projectVisible !== false ? 'left-6' : 'left-1'}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-white/60 uppercase tracking-widest">FADE EFFECT</label>
+                <button 
+                  onClick={() => onUpdate(config.id, { projectFade: config.projectFade === false ? true : false })}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${config.projectFade !== false ? 'bg-blue-600' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${config.projectFade !== false ? 'left-6' : 'left-1'}`} />
+                </button>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>PROJECT MEDIA URL (IMG/VIDEO)</label>
+                </div>
+                <input
+                  type="text"
+                  value={config.projectMediaUrl || ''}
+                  onChange={(e) => onUpdate(config.id, { projectMediaUrl: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                  placeholder="https://example.com/media.mp4"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>PROJECT LINK URL</label>
+                </div>
+                <input
+                  type="text"
+                  value={config.projectLinkUrl || ''}
+                  onChange={(e) => onUpdate(config.id, { projectLinkUrl: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                  placeholder="https://example.com"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>PROJECT TEXT</label>
+                </div>
+                <textarea
+                  value={config.projectText || ''}
+                  onChange={(e) => onUpdate(config.id, { projectText: e.target.value })}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-white/80 text-xs focus:outline-none focus:border-blue-500/50 resize-y min-h-[60px]"
+                  placeholder="Enter project description..."
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>PARALLAX SPEED</label>
+                  <span>{(config.projectParallaxSpeed || 0.5).toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="2"
+                  step="0.1"
+                  value={config.projectParallaxSpeed || 0.5}
+                  onChange={(e) => onUpdate(config.id, { projectParallaxSpeed: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>HORIZONTAL OFFSET (FROM CENTER)</label>
+                  <span>{config.projectHorizontalPosition ?? 0}vw</span>
+                </div>
+                <input
+                  type="range"
+                  min="-50"
+                  max="50"
+                  step="1"
+                  value={config.projectHorizontalPosition ?? 0}
+                  onChange={(e) => onUpdate(config.id, { projectHorizontalPosition: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <div className="flex justify-between text-[8px] text-white/30 mt-1">
+                  <span>LEFT (-)</span>
+                  <span>CENTER (0)</span>
+                  <span>RIGHT (+)</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>VERTICAL OFFSET</label>
+                  <span>{config.projectVerticalPosition ?? 0}vh</span>
+                </div>
+                <input
+                  type="range"
+                  min="-50"
+                  max="50"
+                  step="1"
+                  value={config.projectVerticalPosition ?? 0}
+                  onChange={(e) => onUpdate(config.id, { projectVerticalPosition: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                  <label>PROJECT SIZE (WIDTH)</label>
+                  <span>{(config.projectSize || 30)}vw</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="80"
+                  step="1"
+                  value={config.projectSize || 30}
+                  onChange={(e) => onUpdate(config.id, { projectSize: parseFloat(e.target.value) })}
+                  className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+              </div>
+
+              <div className="pt-4 mt-4 border-t border-white/10 space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[10px] font-bold text-blue-300 uppercase tracking-wider">Secondary Graphic</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] text-white/60 uppercase tracking-widest">FADE</span>
+                    <button 
+                      onClick={() => onUpdate(config.id, { projectSecondaryFade: config.projectSecondaryFade === false ? true : false })}
+                      className={`w-8 h-4 rounded-full transition-colors relative ${config.projectSecondaryFade !== false ? 'bg-blue-600' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${config.projectSecondaryFade !== false ? 'left-4.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                    <label>SECONDARY MEDIA URL</label>
+                  </div>
+                  <input
+                    type="text"
+                    value={config.projectSecondaryMediaUrl || ''}
+                    onChange={(e) => onUpdate(config.id, { projectSecondaryMediaUrl: e.target.value })}
+                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 text-xs focus:outline-none focus:border-blue-500/50"
+                    placeholder="https://example.com/logo.png"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                    <label>SECONDARY PARALLAX SPEED</label>
+                    <span>{(config.projectSecondaryParallaxSpeed ?? 0.5).toFixed(2)}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-2"
+                    max="2"
+                    step="0.1"
+                    value={config.projectSecondaryParallaxSpeed ?? 0.5}
+                    onChange={(e) => onUpdate(config.id, { projectSecondaryParallaxSpeed: parseFloat(e.target.value) })}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                    <label>SECONDARY HORIZONTAL OFFSET</label>
+                    <span>{config.projectSecondaryHorizontalPosition ?? 0}vw</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-50"
+                    max="50"
+                    step="1"
+                    value={config.projectSecondaryHorizontalPosition ?? 0}
+                    onChange={(e) => onUpdate(config.id, { projectSecondaryHorizontalPosition: parseFloat(e.target.value) })}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                    <label>SECONDARY VERTICAL OFFSET</label>
+                    <span>{config.projectSecondaryVerticalPosition ?? 0}vh</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-50"
+                    max="50"
+                    step="1"
+                    value={config.projectSecondaryVerticalPosition ?? 0}
+                    onChange={(e) => onUpdate(config.id, { projectSecondaryVerticalPosition: parseFloat(e.target.value) })}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[10px] mb-1 text-white/60">
+                    <label>SECONDARY SIZE (WIDTH)</label>
+                    <span>{(config.projectSecondarySize || 15)}vw</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="100"
+                    step="1"
+                    value={config.projectSecondarySize || 15}
+                    onChange={(e) => onUpdate(config.id, { projectSecondarySize: parseFloat(e.target.value) })}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )})}
 

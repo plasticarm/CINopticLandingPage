@@ -12,6 +12,9 @@ import { cosmicEnergyCode } from './components/CosmicEnergyShaderCode';
 import { synapsesCode } from './components/SynapsesShaderCode';
 import { gemmariumCode } from './components/GemmariumShaderCode';
 import { blueMarbleCode } from './components/BlueMarbleShaderCode';
+import { sunWaterCloudStarsCode } from './components/SunWaterCloudStarsShaderCode';
+import { cloudyTunnelCode } from './components/CloudyTunnelShaderCode';
+import { imageSequenceCode } from './components/ImageSequenceShaderCode';
 
 export const blackShader = `
 void main() {
@@ -21,9 +24,9 @@ void main() {
 
 export const shaderRegistry: Record<string, { name: string; code: string }[]> = {
   cosmos: [
-    { name: 'Cosmos 1', code: cosmosCode },
-    { name: 'Cosmos 2', code: cosmosCode2 },
     { name: 'Cosmos 3', code: cosmosCode3 },
+    { name: 'Cosmos 1', code: cosmosCode },
+    { name: 'Cosmos 2', code: cosmosCode2 },    
     { name: 'Cosmic Energy', code: cosmicEnergyCode },
     { name: 'Blue Marble', code: blueMarbleCode },
   ],
@@ -32,20 +35,26 @@ export const shaderRegistry: Record<string, { name: string; code: string }[]> = 
   ],
   ocean: [
     { name: 'Ocean 1', code: seascapeCode },
+    { name: 'Sun Water Cloud Stars', code: sunWaterCloudStarsCode },
+    { name: 'Cloudy Tunnel', code: cloudyTunnelCode },
   ],
   luminescence: [
     { name: 'Luminescence 1', code: luminescenceCode },
-    { name: 'Cold Strands', code: coldStrandsCode },
-    { name: 'Gemmarium', code: gemmariumCode },
+    { name: 'Cold Strands', code: coldStrandsCode },      
   ],
   microscopic: [
+    { name: 'Gemmarium', code: gemmariumCode },
     { name: 'Microscopic 1', code: fractalCode },
     { name: 'Synapses', code: synapsesCode },
   ],
   final: [
+    { name: 'Blue Marble', code: blueMarbleCode },
     { name: 'Crossing Storms', code: crossingStormsCode },
     { name: 'Ethereal', code: etherealCode },
     { name: 'Black', code: blackShader },
+  ],
+  image_sequence: [
+    { name: 'Image Sequence', code: imageSequenceCode },
   ]
 };
 
