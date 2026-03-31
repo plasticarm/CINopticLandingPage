@@ -33,6 +33,16 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
   const size = config.projectSize || 30;
   const secondarySize = config.projectSecondarySize || 15;
   
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const actualSize = isMobile ? Math.min(size * 2.5, 90) : size;
+  const actualSecondarySize = isMobile ? Math.min(secondarySize * 2.5, 90) : secondarySize;
+  
   useFrame(() => {
     // Calculate the base position in scroll percentage (0-100)
     const baseTop = (config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100;
@@ -109,7 +119,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
         // Base position is vertically centered in its section
         top: `${(config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100 + 50}vh`, 
         left: '50vw',
-        width: `${size}vw`,
+        width: `${actualSize}vw`,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -139,8 +149,10 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             border: '1px solid rgba(255,255,255,0.0)',
             transform: 'translateZ(0)',
             WebkitTransform: 'translateZ(0)',
-            clipPath: config.projectMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
-            WebkitClipPath: config.projectMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
+            ...(config.projectMediaCircleMask ? {
+              WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
+              maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
+            } : {})
           }}
           onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
           onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -157,11 +169,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 display: 'block', 
                 pointerEvents: 'none', // Prevents interaction with the iframe, allowing the parent <a> tag to handle clicks
                 transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)',
-                ...(config.projectMediaCircleMask ? {
-                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
-                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
-                } : {})
+                WebkitTransform: 'translateZ(0)'
               }}
               allow="autoplay; encrypted-media"
               title="Project Video"
@@ -180,11 +188,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 objectFit: config.projectMediaCircleMask ? 'cover' : 'fill',
                 display: 'block',
                 transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)',
-                ...(config.projectMediaCircleMask ? {
-                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
-                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
-                } : {})
+                WebkitTransform: 'translateZ(0)'
               }}
             />
           ) : (
@@ -198,11 +202,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 objectFit: config.projectMediaCircleMask ? 'cover' : 'fill',
                 display: 'block',
                 transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)',
-                ...(config.projectMediaCircleMask ? {
-                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
-                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
-                } : {})
+                WebkitTransform: 'translateZ(0)'
               }}
               referrerPolicy="no-referrer"
             />
@@ -233,7 +233,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
             position: 'absolute',
             top: `${(config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100 + 50}vh`, 
             left: '50vw',
-            width: `${secondarySize}vw`,
+            width: `${actualSecondarySize}vw`,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -257,8 +257,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 pointerEvents: 'none',
                 transform: 'translateZ(0)',
                 WebkitTransform: 'translateZ(0)',
-                clipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
-                WebkitClipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
+                overflow: 'hidden',
                 ...(config.projectSecondaryMediaCircleMask ? {
                   WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
                   maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
@@ -282,13 +281,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
                 display: 'block',
                 transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)',
-                clipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
-                WebkitClipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
-                ...(config.projectSecondaryMediaCircleMask ? {
-                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
-                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
-                } : {})
+                WebkitTransform: 'translateZ(0)'
               }}
             />
           ) : (
@@ -303,13 +296,7 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
                 borderRadius: config.projectSecondaryMediaCircleMask ? '50%' : '8px',
                 display: 'block',
                 transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)',
-                clipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
-                WebkitClipPath: config.projectSecondaryMediaCircleMask ? 'circle(50% at 50% 50%)' : 'none',
-                ...(config.projectSecondaryMediaCircleMask ? {
-                  WebkitMaskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)',
-                  maskImage: 'radial-gradient(circle closest-side, black calc(100% - 2px), transparent 100%)'
-                } : {})
+                WebkitTransform: 'translateZ(0)'
               }}
               referrerPolicy="no-referrer"
             />

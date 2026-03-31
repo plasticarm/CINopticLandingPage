@@ -18,6 +18,7 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
   const [showEmbedInfo, setShowEmbedInfo] = React.useState(false);
   const [customEmbedUrl, setCustomEmbedUrl] = React.useState('');
   const [activeTabs, setActiveTabs] = React.useState<Record<string, 'shader' | 'project'>>({});
+  const [isMinimized, setIsMinimized] = React.useState(false);
 
   const toggleTab = (id: string, tab: 'shader' | 'project') => {
     setActiveTabs(prev => ({ ...prev, [id]: tab }));
@@ -150,68 +151,112 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
   };
 
   return (
-    <div className="fixed left-4 top-4 z-50 w-72 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl p-4 text-white font-mono shadow-2xl overflow-y-auto max-h-[90vh]">
-      <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-2">
-        <div className="flex items-center gap-2">
-          <Settings2 size={20} className="text-blue-400" />
-          <h2 className="text-lg font-bold tracking-tight">SHADER CONTROLS</h2>
-        </div>
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={() => setShowEmbedInfo(!showEmbedInfo)}
-            className={`p-1.5 rounded-lg transition-colors ${showEmbedInfo ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
-            title="Embed Settings"
-          >
-            <Code size={16} />
-          </button>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-            title="Reset All"
-          >
-            <RotateCcw size={16} />
-          </button>
-        </div>
-      </div>
-
-      {showEmbedInfo && (
-        <div className="mb-6 p-3 bg-white/5 rounded-lg border border-white/10 text-[10px] space-y-3">
-          <div className="flex items-start gap-2 text-blue-300">
-            <Info size={14} className="shrink-0 mt-0.5" />
-            <p>For Google Sites, use the <span className="text-white font-bold">Shared App URL</span> to avoid policy blocks.</p>
+    <>
+      {isMinimized && (
+        <button 
+          onClick={() => setIsMinimized(false)}
+          className="fixed top-4 right-4 z-50 bg-black/80 text-white px-4 py-2 rounded-lg border border-white/20 shadow-lg backdrop-blur-md text-xs font-bold tracking-wider hover:bg-white/10 transition-colors"
+        >
+          EDIT UI
+        </button>
+      )}
+      
+      {!isMinimized && (
+        <div className="fixed left-4 top-4 z-50 w-72 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl p-4 text-white font-mono shadow-2xl overflow-y-auto max-h-[90vh]">
+          <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-2">
+            <div className="flex items-center gap-2">
+              <Settings2 size={20} className="text-blue-400" />
+              <h2 className="text-lg font-bold tracking-tight">SHADER CONTROLS</h2>
+            </div>
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setShowEmbedInfo(!showEmbedInfo)}
+                className={`p-1.5 rounded-lg transition-colors ${showEmbedInfo ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-white/10 text-white/60 hover:text-white'}`}
+                title="Embed Settings"
+              >
+                <Code size={16} />
+              </button>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
+                title="Reset All"
+              >
+                <RotateCcw size={16} />
+              </button>
+              <button 
+                onClick={() => setIsMinimized(true)} 
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white ml-1"
+                title="Hide UI"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
           </div>
-          
-          <div className="space-y-1">
-            <label className="text-white/40 uppercase tracking-widest">Custom Embed URL (Optional)</label>
-            <input 
-              type="text"
-              placeholder="Paste Shared URL here..."
-              value={customEmbedUrl}
-              onChange={(e) => setCustomEmbedUrl(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-blue-500/50"
+
+          {showEmbedInfo && (
+            <div className="mb-6 p-3 bg-white/5 rounded-lg border border-white/10 text-[10px] space-y-3">
+              <div className="flex items-start gap-2 text-blue-300">
+                <Info size={14} className="shrink-0 mt-0.5" />
+                <p>For Google Sites, use the <span className="text-white font-bold">Shared App URL</span> to avoid policy blocks.</p>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-white/40 uppercase tracking-widest">Custom Embed URL (Optional)</label>
+                <input 
+                  type="text"
+                  placeholder="Paste Shared URL here..."
+                  value={customEmbedUrl}
+                  onChange={(e) => setCustomEmbedUrl(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <button 
+                onClick={copyEmbedCode}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                {copied ? (
+                  <>
+                    <Check size={14} />
+                    COPIED!
+                  </>
+                ) : (
+                  <>
+                    <Code size={14} />
+                    COPY IFRAME CODE
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          <div className="mb-8 pb-6 border-b border-white/10 space-y-3">
+            <div className="flex gap-2">
+              <button
+                onClick={handleExport}
+                className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
+              >
+                <Download size={14} />
+                EXPORT
+              </button>
+              <button
+                onClick={() => document.getElementById('import-input')?.click()}
+                className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
+              >
+                <Upload size={14} />
+                IMPORT
+              </button>
+            </div>
+            <input
+              id="import-input"
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
             />
           </div>
 
-          <button 
-            onClick={copyEmbedCode}
-            className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-colors flex items-center justify-center gap-2"
-          >
-            {copied ? (
-              <>
-                <Check size={14} />
-                COPIED!
-              </>
-            ) : (
-              <>
-                <Code size={14} />
-                COPY IFRAME CODE
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
-      <div className="mb-8">
+          <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs text-white/40">00.</span>
           <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">Global Settings</h3>
@@ -698,35 +743,11 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
         </div>
       )})}
 
-      <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
-        <div className="flex gap-2">
-          <button
-            onClick={handleExport}
-            className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
-          >
-            <Download size={14} />
-            EXPORT
-          </button>
-          <button
-            onClick={() => document.getElementById('import-input')?.click()}
-            className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
-          >
-            <Upload size={14} />
-            IMPORT
-          </button>
-        </div>
-        <input
-          id="import-input"
-          type="file"
-          accept=".json"
-          onChange={handleImport}
-          className="hidden"
-        />
-      </div>
-
       <div className="mt-6 pt-4 border-t border-white/10 text-[9px] text-white/30 text-center uppercase tracking-widest">
         Scroll to animate • Drag sliders to adjust
       </div>
     </div>
+    )}
+    </>
   );
 }
