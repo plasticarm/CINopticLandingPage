@@ -15,6 +15,7 @@ interface ControlsProps {
 
 export default function Controls({ configs, setConfigs, onUpdate, introText, onUpdateIntroText, globalTextBackground, onUpdateGlobalTextBackground }: ControlsProps) {
   const [copied, setCopied] = React.useState(false);
+  const [copiedUrl, setCopiedUrl] = React.useState(false);
   const [showEmbedInfo, setShowEmbedInfo] = React.useState(false);
   const [customEmbedUrl, setCustomEmbedUrl] = React.useState('');
   const [activeTabs, setActiveTabs] = React.useState<Record<string, 'shader' | 'project'>>({});
@@ -27,11 +28,7 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
   const getEmbedUrl = () => {
     const baseUrl = customEmbedUrl || `${window.location.origin}${window.location.pathname}`;
     const url = new URL(baseUrl);
-    url.searchParams.set('hideUI', 'true');
-    url.searchParams.set('introText', introText);
-    url.searchParams.set('globalTextBackground', globalTextBackground.toString());
     
-    // Serialize configs to URL parameter
     try {
       // Include all properties to ensure exact match
       const serializedConfigs = configs.map(c => ({
@@ -60,15 +57,27 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
         projectSize: c.projectSize,
         projectVisible: c.projectVisible,
         projectFade: c.projectFade,
+        projectMediaCircleMask: c.projectMediaCircleMask,
         // Secondary Graphic properties
         projectSecondaryMediaUrl: c.projectSecondaryMediaUrl,
         projectSecondaryParallaxSpeed: c.projectSecondaryParallaxSpeed,
         projectSecondaryHorizontalPosition: c.projectSecondaryHorizontalPosition,
         projectSecondaryVerticalPosition: c.projectSecondaryVerticalPosition,
         projectSecondarySize: c.projectSecondarySize,
-        projectSecondaryFade: c.projectSecondaryFade
+        projectSecondaryFade: c.projectSecondaryFade,
+        projectSecondaryMediaCircleMask: c.projectSecondaryMediaCircleMask
       }));
-      url.searchParams.set('config', JSON.stringify(serializedConfigs));
+
+      const exportData = {
+        introText,
+        globalTextBackground,
+        configs: serializedConfigs
+      };
+
+      // Encode as Base64 (handling unicode characters safely)
+      const encodedData = btoa(encodeURIComponent(JSON.stringify(exportData)));
+      url.searchParams.set('data', encodedData);
+      
     } catch (e) {
       console.error('Failed to serialize configs', e);
     }
@@ -92,6 +101,24 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
         .catch(() => fallbackCopy(embedCode, onSuccess));
     } else {
       fallbackCopy(embedCode, onSuccess);
+    }
+  };
+
+  const copyUrlOnly = () => {
+    const embedUrl = getEmbedUrl();
+    
+    const onSuccess = () => {
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    };
+
+    // Try modern Clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(embedUrl)
+        .then(onSuccess)
+        .catch(() => fallbackCopy(embedUrl, onSuccess));
+    } else {
+      fallbackCopy(embedUrl, onSuccess);
     }
   };
 
@@ -211,22 +238,40 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
                 />
               </div>
 
-              <button 
-                onClick={copyEmbedCode}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-colors flex items-center justify-center gap-2"
-              >
-                {copied ? (
-                  <>
-                    <Check size={14} />
-                    COPIED!
-                  </>
-                ) : (
-                  <>
-                    <Code size={14} />
-                    COPY IFRAME CODE
-                  </>
-                )}
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={copyUrlOnly}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-colors flex items-center justify-center gap-2"
+                >
+                  {copiedUrl ? (
+                    <>
+                      <Check size={14} />
+                      COPIED!
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink size={14} />
+                      COPY URL
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={copyEmbedCode}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold transition-colors flex items-center justify-center gap-2"
+                >
+                  {copied ? (
+                    <>
+                      <Check size={14} />
+                      COPIED!
+                    </>
+                  ) : (
+                    <>
+                      <Code size={14} />
+                      COPY IFRAME
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
