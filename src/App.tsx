@@ -3,14 +3,37 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { ScrollControls, Scroll, useScroll } from '@react-three/drei';
 import ShaderStage from './components/ShaderStage';
 import Controls from './components/Controls';
-import BubbleMediaMesh from './components/BubbleMediaMesh';
 import { ShaderConfig } from './types';
 import { shaderRegistry, allShaders } from './shaderRegistry';
+
+function ScrollToSection({ pages }: { pages: number }) {
+  const scroll = useScroll();
+  
+  useEffect(() => {
+    const handleScrollTo = (e: CustomEvent) => {
+      const { offset } = e.detail;
+      if (scroll.el) {
+        // scroll.el is the scroll container element
+        // offset is a value between 0 and 1
+        const targetScroll = offset * (scroll.el.scrollHeight - scroll.el.clientHeight);
+        scroll.el.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth'
+        });
+      }
+    };
+    
+    window.addEventListener('scrollToSection' as any, handleScrollTo);
+    return () => window.removeEventListener('scrollToSection' as any, handleScrollTo);
+  }, [scroll]);
+  
+  return null;
+}
 
 function ProjectItem({ config, pages, index, globalTextBackground }: { config: ShaderConfig; pages: number; index: number; globalTextBackground: boolean }) {
   const scroll = useScroll();
@@ -34,20 +57,12 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
   const size = config.projectSize || 30;
   const secondarySize = config.projectSecondarySize || 15;
   
-  const [isRendered, setIsRendered] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
   React.useEffect(() => {
-    // Initial check for rendering
-    const baseTop = (config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100;
-    // Assume starting at 0 scroll
-    const distance = Math.abs(0 - baseTop);
-    setIsRendered(distance < 150);
-
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [config.startOffset, config.stickyRange, pages]);
+  }, []);
 
   const actualSize = isMobile ? Math.min(size * 2.5, 90) : size;
   const actualSecondarySize = isMobile ? Math.min(secondarySize * 2.5, 90) : secondarySize;
@@ -62,16 +77,14 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
     // Fade out based on distance from center of viewport
     // distance is in vh units
     const distance = Math.abs(scrollOffset - baseTop);
-    const fadeRange = 45; // vh range for full fade
     
-    // Mount/unmount threshold (1.5 screens away)
-    const shouldRender = distance < 150;
-    if (shouldRender !== isRendered) {
-      setIsRendered(shouldRender);
-    }
+    // Calculate fade range based on object size so large objects don't disappear while still on screen
+    // 50vh is the distance from center to edge of screen. We add actualSize * 2 to ensure it's fully off screen
+    const primaryFadeRange = 200 + (actualSize * 2); 
+    const secondaryFadeRange = 50 + (actualSecondarySize * 2);
     
-    const primaryOpacity = fadePrimary ? Math.max(0, 1 - Math.pow(distance / fadeRange, 2)) : 1;
-    const secondaryOpacity = fadeSecondary ? Math.max(0, 1 - Math.pow(distance / fadeRange, 2)) : 1;
+    const primaryOpacity = fadePrimary ? Math.max(0, 1 - Math.pow(distance / primaryFadeRange, 2)) : 1;
+    const secondaryOpacity = fadeSecondary ? Math.max(0, 1 - Math.pow(distance / secondaryFadeRange, 2)) : 1;
     
     if (ref.current) {
       // Vertical parallax offset
@@ -79,7 +92,10 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
       
       // Apply styles directly for performance
       ref.current.style.opacity = primaryOpacity.toString();
-      ref.current.style.visibility = primaryOpacity <= 0 ? 'hidden' : 'visible';
+      
+      // Hide if fully faded out OR if it's completely off screen (even if not fading)
+      const isPrimaryHidden = primaryOpacity <= 0 || distance > primaryFadeRange;
+      ref.current.style.visibility = isPrimaryHidden ? 'hidden' : 'visible';
       
       // Use a single transform to avoid conflicts
       // Base translate(-50%, -50%) centers the element on its top/left anchor
@@ -89,7 +105,10 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
     if (secondaryRef.current) {
       const secondaryParallaxOffset = (scrollOffset - baseTop) * (1 - secondaryParallaxSpeed);
       secondaryRef.current.style.opacity = secondaryOpacity.toString();
-      secondaryRef.current.style.visibility = secondaryOpacity <= 0 ? 'hidden' : 'visible';
+      
+      const isSecondaryHidden = secondaryOpacity <= 0 || distance > secondaryFadeRange;
+      secondaryRef.current.style.visibility = isSecondaryHidden ? 'hidden' : 'visible';
+      
       secondaryRef.current.style.transform = `translate(-50%, -50%) translateX(${secondaryHorizontalOffset}vw) translateY(calc(${secondaryParallaxOffset}vh + ${secondaryVerticalOffset}vh))`;
     }
   });
@@ -125,18 +144,11 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
   const secondaryYoutubeId = config.projectSecondaryMediaUrl ? getYouTubeId(config.projectSecondaryMediaUrl) : null;
   const isSecondaryVideo = config.projectSecondaryMediaUrl?.match(/\.(mp4|webm|ogg)$/i);
 
-  const useBubbleLens = config.projectMediaBubbleLens && !youtubeId;
-  const useSecondaryBubbleLens = config.projectSecondaryMediaBubbleLens && !secondaryYoutubeId;
-
-  if (!isRendered) return null;
-
   return (
     <>
-      {/* Primary Media HTML */}
-      {!useBubbleLens && (
-        <div 
-          ref={ref}
-        style={{ 
+      <div 
+        ref={ref}
+      style={{ 
         position: 'absolute', 
         // Base position is vertically centered in its section
         top: `${(config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100 + 50}vh`, 
@@ -254,9 +266,8 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
         </div>
       )}
       </div>
-      )}
 
-      {secondaryMediaUrl && !useSecondaryBubbleLens && (
+      {secondaryMediaUrl && (
         <div
           ref={secondaryRef}
           style={{
@@ -579,22 +590,16 @@ export default function App() {
       )}
       <Canvas camera={{ position: [0, 0, 5] }}>
         <ScrollControls pages={pages} damping={0.2}>
+          <ScrollToSection pages={pages} />
           {configs.map((config, index) => {
             const selectedShader = allShaders.find(s => s.id === config.shaderId) || allShaders[0];
             
             return (
-              <React.Fragment key={`${config.id}-${config.shaderId || '0'}`}>
-                <ShaderStage 
-                  config={config} 
-                  fragmentShader={selectedShader.code} 
-                />
-                {config.projectMediaBubbleLens && config.projectMediaUrl && !config.projectMediaUrl.includes('youtube') && !config.projectMediaUrl.includes('youtu.be') && (
-                  <BubbleMediaMesh config={config} pages={pages} />
-                )}
-                {config.projectSecondaryMediaBubbleLens && config.projectSecondaryMediaUrl && !config.projectSecondaryMediaUrl.includes('youtube') && !config.projectSecondaryMediaUrl.includes('youtu.be') && (
-                  <BubbleMediaMesh config={config} pages={pages} isSecondary={true} />
-                )}
-              </React.Fragment>
+              <ShaderStage 
+                key={`${config.id}-${config.shaderId || '0'}`} 
+                config={config} 
+                fragmentShader={selectedShader.code} 
+              />
             );
           })}
           
