@@ -97,29 +97,6 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
     const animationEnd = Math.min(1, endScrollOut);
     const totalVisibilityRange = animationEnd - animationStart;
 
-    // Clamp scrollProgress between 0 and 1 to prevent overscroll bouncing and gaps
-    const clampedScroll = Math.max(0, Math.min(1, scrollProgress));
-
-    // Calculate visibility
-    const isVisible = clampedScroll >= startScrollIn && clampedScroll <= endScrollOut;
-    mesh.current.visible = isVisible;
-
-    // If completely off-screen, skip all the heavy math and texture updates
-    if (!isVisible) return;
-
-    // Calculate Y position for the transition effect
-    if (clampedScroll < startOffset) {
-      const range = startOffset - startScrollIn;
-      const p = range > 0 ? Math.max(0, (clampedScroll - startScrollIn) / range) : 1;
-      mesh.current.position.y = position[1] - viewport.height * (1 - p);
-    } else if (clampedScroll < endSticky) {
-      mesh.current.position.y = position[1];
-    } else {
-      const range = endScrollOut - endSticky;
-      const p = range > 0 ? Math.min(1, (clampedScroll - endSticky) / range) : 1;
-      mesh.current.position.y = position[1] + viewport.height * p;
-    }
-
     const localProgress = totalVisibilityRange > 0 
       ? Math.max(0, Math.min(1, (scrollProgress - animationStart) / totalVisibilityRange))
       : 0;
@@ -177,6 +154,22 @@ export default function ShaderStage({ config, fragmentShader, position = [0, 0, 
 
     mesh.current.position.x = position[0];
     mesh.current.position.z = position[2];
+
+    // Clamp scrollProgress between 0 and 1 to prevent overscroll bouncing and gaps
+    const clampedScroll = Math.max(0, Math.min(1, scrollProgress));
+
+    // Calculate Y position for the transition effect
+    if (clampedScroll < startOffset) {
+      const range = startOffset - startScrollIn;
+      const p = range > 0 ? Math.max(0, (clampedScroll - startScrollIn) / range) : 1;
+      mesh.current.position.y = position[1] - viewport.height * (1 - p);
+    } else if (clampedScroll < endSticky) {
+      mesh.current.position.y = position[1];
+    } else {
+      const range = endScrollOut - endSticky;
+      const p = range > 0 ? Math.min(1, (clampedScroll - endSticky) / range) : 1;
+      mesh.current.position.y = position[1] + viewport.height * p;
+    }
     
     const mouseX = ((state.mouse.x + 1) / 2) * size.width;
     const mouseY = ((state.mouse.y + 1) / 2) * size.height;
