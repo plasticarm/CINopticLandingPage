@@ -465,24 +465,6 @@ const INITIAL_CONFIGS: ShaderConfig[] = [
 export default function App() {
   const [configs, setConfigs] = useState<ShaderConfig[]>(() => {
     const params = new URLSearchParams(window.location.search);
-    
-    // Check for the new stateless 'data' parameter
-    const dataParam = params.get('data');
-    if (dataParam) {
-      try {
-        const decoded = JSON.parse(decodeURIComponent(atob(dataParam)));
-        if (decoded.configs && Array.isArray(decoded.configs)) {
-          return INITIAL_CONFIGS.map((initialConfig, i) => ({
-            ...initialConfig,
-            ...(decoded.configs[i] || {})
-          }));
-        }
-      } catch (e) {
-        console.error('Failed to parse data from URL', e);
-      }
-    }
-
-    // Fallback to old 'config' parameter for backwards compatibility
     const configParam = params.get('config');
     if (configParam) {
       try {
@@ -503,37 +485,19 @@ export default function App() {
 
   const [introText, setIntroText] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
-    const dataParam = params.get('data');
-    if (dataParam) {
-      try {
-        const decoded = JSON.parse(decodeURIComponent(atob(dataParam)));
-        if (decoded.introText !== undefined) return decoded.introText;
-      } catch (e) {
-        // Ignore
-      }
-    }
     return params.get('introText') || "Welcome to CINoptic";
   });
   
   const [globalTextBackground, setGlobalTextBackground] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
-    const dataParam = params.get('data');
-    if (dataParam) {
-      try {
-        const decoded = JSON.parse(decodeURIComponent(atob(dataParam)));
-        if (decoded.globalTextBackground !== undefined) return decoded.globalTextBackground;
-      } catch (e) {
-        // Ignore
-      }
-    }
     if (params.has('globalTextBackground')) {
       return params.get('globalTextBackground') === 'true';
     }
     return true;
   });
   
-  // Check for hideUI parameter or if data parameter is present (auto-hide UI in view mode)
-  const hideUI = new URLSearchParams(window.location.search).has('hideUI') || new URLSearchParams(window.location.search).has('data');
+  // Check for hideUI parameter
+  const hideUI = new URLSearchParams(window.location.search).has('hideUI');
 
   const handleUpdate = (id: string, updates: Partial<ShaderConfig>) => {
     setConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
