@@ -8,6 +8,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { ScrollControls, Scroll, useScroll } from '@react-three/drei';
 import ShaderStage from './components/ShaderStage';
 import Controls from './components/Controls';
+import BubbleMediaMesh from './components/BubbleMediaMesh';
 import { ShaderConfig } from './types';
 import { shaderRegistry, allShaders } from './shaderRegistry';
 
@@ -33,12 +34,20 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
   const size = config.projectSize || 30;
   const secondarySize = config.projectSecondarySize || 15;
   
+  const [isRendered, setIsRendered] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
   React.useEffect(() => {
+    // Initial check for rendering
+    const baseTop = (config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100;
+    // Assume starting at 0 scroll
+    const distance = Math.abs(0 - baseTop);
+    setIsRendered(distance < 150);
+
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [config.startOffset, config.stickyRange, pages]);
 
   const actualSize = isMobile ? Math.min(size * 2.5, 90) : size;
   const actualSecondarySize = isMobile ? Math.min(secondarySize * 2.5, 90) : secondarySize;
@@ -54,6 +63,12 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
     // distance is in vh units
     const distance = Math.abs(scrollOffset - baseTop);
     const fadeRange = 45; // vh range for full fade
+    
+    // Mount/unmount threshold (1.5 screens away)
+    const shouldRender = distance < 150;
+    if (shouldRender !== isRendered) {
+      setIsRendered(shouldRender);
+    }
     
     const primaryOpacity = fadePrimary ? Math.max(0, 1 - Math.pow(distance / fadeRange, 2)) : 1;
     const secondaryOpacity = fadeSecondary ? Math.max(0, 1 - Math.pow(distance / fadeRange, 2)) : 1;
@@ -110,11 +125,18 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
   const secondaryYoutubeId = config.projectSecondaryMediaUrl ? getYouTubeId(config.projectSecondaryMediaUrl) : null;
   const isSecondaryVideo = config.projectSecondaryMediaUrl?.match(/\.(mp4|webm|ogg)$/i);
 
+  const useBubbleLens = config.projectMediaBubbleLens && !youtubeId;
+  const useSecondaryBubbleLens = config.projectSecondaryMediaBubbleLens && !secondaryYoutubeId;
+
+  if (!isRendered) return null;
+
   return (
     <>
-      <div 
-        ref={ref}
-      style={{ 
+      {/* Primary Media HTML */}
+      {!useBubbleLens && (
+        <div 
+          ref={ref}
+        style={{ 
         position: 'absolute', 
         // Base position is vertically centered in its section
         top: `${(config.startOffset + (config.stickyRange ?? 0.14) / 2) * (pages - 1) * 100 + 50}vh`, 
@@ -232,8 +254,9 @@ function ProjectItem({ config, pages, index, globalTextBackground }: { config: S
         </div>
       )}
       </div>
+      )}
 
-      {secondaryMediaUrl && (
+      {secondaryMediaUrl && !useSecondaryBubbleLens && (
         <div
           ref={secondaryRef}
           style={{
@@ -465,6 +488,24 @@ const INITIAL_CONFIGS: ShaderConfig[] = [
 export default function App() {
   const [configs, setConfigs] = useState<ShaderConfig[]>(() => {
     const params = new URLSearchParams(window.location.search);
+    
+    // Check for the new stateless 'data' parameter
+    const dataParam = params.get('data');
+    if (dataParam) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(atob(dataParam)));
+        if (decoded.configs && Array.isArray(decoded.configs)) {
+          return INITIAL_CONFIGS.map((initialConfig, i) => ({
+            ...initialConfig,
+            ...(decoded.configs[i] || {})
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to parse data from URL', e);
+      }
+    }
+
+    // Fallback to old 'config' parameter for backwards compatibility
     const configParam = params.get('config');
     if (configParam) {
       try {
@@ -485,19 +526,37 @@ export default function App() {
 
   const [introText, setIntroText] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
+    const dataParam = params.get('data');
+    if (dataParam) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(atob(dataParam)));
+        if (decoded.introText !== undefined) return decoded.introText;
+      } catch (e) {
+        // Ignore
+      }
+    }
     return params.get('introText') || "Welcome to CINoptic";
   });
   
   const [globalTextBackground, setGlobalTextBackground] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
+    const dataParam = params.get('data');
+    if (dataParam) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(atob(dataParam)));
+        if (decoded.globalTextBackground !== undefined) return decoded.globalTextBackground;
+      } catch (e) {
+        // Ignore
+      }
+    }
     if (params.has('globalTextBackground')) {
       return params.get('globalTextBackground') === 'true';
     }
     return true;
   });
   
-  // Check for hideUI parameter
-  const hideUI = new URLSearchParams(window.location.search).has('hideUI');
+  // Check for hideUI parameter or if data parameter is present (auto-hide UI in view mode)
+  const hideUI = new URLSearchParams(window.location.search).has('hideUI') || new URLSearchParams(window.location.search).has('data');
 
   const handleUpdate = (id: string, updates: Partial<ShaderConfig>) => {
     setConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
@@ -524,11 +583,18 @@ export default function App() {
             const selectedShader = allShaders.find(s => s.id === config.shaderId) || allShaders[0];
             
             return (
-              <ShaderStage 
-                key={`${config.id}-${config.shaderId || '0'}`} 
-                config={config} 
-                fragmentShader={selectedShader.code} 
-              />
+              <React.Fragment key={`${config.id}-${config.shaderId || '0'}`}>
+                <ShaderStage 
+                  config={config} 
+                  fragmentShader={selectedShader.code} 
+                />
+                {config.projectMediaBubbleLens && config.projectMediaUrl && !config.projectMediaUrl.includes('youtube') && !config.projectMediaUrl.includes('youtu.be') && (
+                  <BubbleMediaMesh config={config} pages={pages} />
+                )}
+                {config.projectSecondaryMediaBubbleLens && config.projectSecondaryMediaUrl && !config.projectSecondaryMediaUrl.includes('youtube') && !config.projectSecondaryMediaUrl.includes('youtu.be') && (
+                  <BubbleMediaMesh config={config} pages={pages} isSecondary={true} />
+                )}
+              </React.Fragment>
             );
           })}
           

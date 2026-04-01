@@ -26,6 +26,7 @@ export interface ShaderConfig {
   projectVisible?: boolean;
   projectFade?: boolean;
   projectMediaCircleMask?: boolean;
+  projectMediaBubbleLens?: boolean;
   // Secondary Graphic properties
   projectSecondaryMediaUrl?: string;
   projectSecondaryParallaxSpeed?: number;
@@ -34,6 +35,7 @@ export interface ShaderConfig {
   projectSecondarySize?: number;
   projectSecondaryFade?: boolean;
   projectSecondaryMediaCircleMask?: boolean;
+  projectSecondaryMediaBubbleLens?: boolean;
 }
 
 export interface AppConfig {
