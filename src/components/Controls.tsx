@@ -587,6 +587,15 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
                     <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${config.projectMediaCircleMask ? 'left-4.5' : 'left-0.5'}`} />
                   </button>
                 </div>
+                <div className="flex items-center justify-between mt-2">
+                  <label className="text-[10px] text-white/60 uppercase tracking-widest">BUBBLE LENS EFFECT</label>
+                  <button 
+                    onClick={() => onUpdate(config.id, { projectMediaBubbleLens: !config.projectMediaBubbleLens })}
+                    className={`w-8 h-4 rounded-full transition-colors relative ${config.projectMediaBubbleLens ? 'bg-blue-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${config.projectMediaBubbleLens ? 'left-4.5' : 'left-0.5'}`} />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -715,6 +724,15 @@ export default function Controls({ configs, setConfigs, onUpdate, introText, onU
                       className={`w-8 h-4 rounded-full transition-colors relative ${config.projectSecondaryMediaCircleMask ? 'bg-blue-600' : 'bg-white/10'}`}
                     >
                       <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${config.projectSecondaryMediaCircleMask ? 'left-4.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <label className="text-[10px] text-white/60 uppercase tracking-widest">BUBBLE LENS EFFECT</label>
+                    <button 
+                      onClick={() => onUpdate(config.id, { projectSecondaryMediaBubbleLens: !config.projectSecondaryMediaBubbleLens })}
+                      className={`w-8 h-4 rounded-full transition-colors relative ${config.projectSecondaryMediaBubbleLens ? 'bg-blue-600' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${config.projectSecondaryMediaBubbleLens ? 'left-4.5' : 'left-0.5'}`} />
                     </button>
                   </div>
                 </div>

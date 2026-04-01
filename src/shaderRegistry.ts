@@ -15,6 +15,7 @@ import { blueMarbleCode } from './components/BlueMarbleShaderCode';
 import { sunWaterCloudStarsCode } from './components/SunWaterCloudStarsShaderCode';
 import { cloudyTunnelCode } from './components/CloudyTunnelShaderCode';
 import { imageSequenceCode } from './components/ImageSequenceShaderCode';
+import { bubbleLensCode } from './components/BubbleLensShaderCode';
 
 export const blackShader = `
 void main() {
@@ -55,6 +56,7 @@ export const shaderRegistry: Record<string, { name: string; code: string }[]> = 
   ],
   image_sequence: [
     { name: 'Image Sequence', code: imageSequenceCode },
+    { name: 'Bubble Lens ImgSeq', code: bubbleLensCode },
   ]
 };
 
